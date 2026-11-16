@@ -503,7 +503,7 @@ function numCheck(raw){
   if(d.indexOf('00')===0) d=d.slice(2);
   if(/^(\d)\1+$/.test(d.slice(-8)) || /^(12345678|23456789|87654321)$/.test(d.slice(-8))) return 'Numéro fictif';
   var loc=d.length===8?d:(d.length===11&&d.indexOf('226')===0?d.slice(3):null);
-  if(loc) return /^[567]/.test(loc)?'':(/^2/.test(loc)?'Numéro fixe (pas de WhatsApp)':'Ne commence pas par 5, 6 ou 7');
+  if(loc) return /^[0567]/.test(loc)?'':(/^2/.test(loc)?'Numéro fixe (pas de WhatsApp)':'Ne commence pas par 0, 5, 6 ou 7');
   if(d.indexOf('226')===0) return 'Il manque ou il y a trop de chiffres';
   if(d.length>=10&&d.length<=15) return '';
   return d.length<8?'Il manque des chiffres':'Nombre de chiffres incorrect';
