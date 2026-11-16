@@ -221,6 +221,7 @@ var ICO={
   back:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14l-5-5 5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>'
 };
 var GROUPS=[
+  {id:'num',  ttl:'📵 Numéros à vérifier', hint:'Le numéro semble faux : corrige-le avant d\'envoyer le message.', btn:'Corriger le numéro'},
   {id:'rdv',  ttl:'📅 Rendez-vous à rappeler', hint:'Le RDV est aujourd\'hui ou demain : un petit rappel.', btn:'Rappeler le RDV'},
   {id:'cb',   ttl:'📞 Personnes à rappeler', hint:'Tu avais prévu de les rappeler aujourd\'hui.', btn:'Appeler'},
   {id:'msg',  ttl:'✉️ Premiers messages', hint:'Nouvelle fiche ou nouvelle étape : le message est prêt.', btn:'Envoyer'},
@@ -287,7 +288,8 @@ function load(){ return run('getData',S.pin).then(function(d){ S.data=d; hello()
 
 /* ---------- Classement du jour ---------- */
 function all(){ var a=[]; if(!S.data) return a; KINDS.forEach(function(k){ a=a.concat(S.data.kinds[k]); }); return a.filter(function(p){ return p.doublon!=='Doublon'; }); }
-function groupOf(p){
+function groupOf(p){ var g=groupBase(p); return (g && g!=='maj' && p.numBad) ? 'num' : g; }
+function groupBase(p){
   if(p.action==='RAPPEL RDV') return 'rdv';
   if(p.callback && p.callback<=today()) return 'cb';
   if(p.action==='Message à envoyer') return 'msg';
@@ -362,9 +364,11 @@ function card(p,g){
   if(p.prio==='PRIORITÉ') flags+='<span class="flag hot">🔥 Priorité</span>';
   else if(p.rdv && p.rdv>=today()) flags+='<span class="flag rdv">'+fds(p.rdv)+(p.heure?' · '+p.heure.replace(':','h'):'')+'</span>';
   else if(p.noRdv) flags+='<span class="flag warn">Date RDV ?</span>';
+  if(p.numBad && !isClosed(p)) flags='<span class="flag hot">📵 Numéro ?</span>';
   var act='';
   if(g && canWrite()){
-    if(g.id==='cb') act='<a class="b pri" href="tel:+'+esc(p.num)+'" data-act="call" data-k="'+k+'">'+ICO.tel+'Appeler</a>';
+    if(g.id==='num') act='<button class="b orange" data-act="fixnum" data-k="'+k+'">📵 '+g.btn+'</button>';
+    else if(g.id==='cb') act='<a class="b pri" href="tel:+'+esc(p.num)+'" data-act="call" data-k="'+k+'">'+ICO.tel+'Appeler</a>';
     else if(g.id==='maj') act='<button class="b orange" data-act="open" data-k="'+k+'" data-ft="suivi">'+ICO.pen+(p.action==='RDV passé'?'Comment s\'est passé le RDV ?':p.action==='Passer en veille'?'Passer en veille ?':'Classer en perdu ?')+'</button>';
     else if(p.msg) act='<a class="b wa" href="'+waUrl(p.num,p.msg)+'" target="_blank" rel="noopener" data-act="sent" data-k="'+k+'">'+ICO.wa+g.btn+'</a>';
     if(g.id==='rel') act+='<button class="b ghost" data-act="replied" data-k="'+k+'" title="A répondu">'+ICO.back+'</button>';
@@ -396,6 +400,7 @@ function drawFtab(){
   $('ftabs').innerHTML=T.map(function(t){return '<button class="'+(S.ftab===t[0]?'on':'')+'" data-act="ftab" data-ft="'+t[0]+'">'+t[1]+'</button>'}).join('');
   var b=$('sbody'), h='';
   if(S.ftab==='msg'){
+    if(p.numBad) h+='<div class="box" style="background:var(--red-50)"><b style="color:var(--red)">📵 Attention : numéro douteux</b><div class="hint" style="margin:4px 0 10px;color:var(--ink)">'+esc(p.numBad)+'. Le message risque de ne pas arriver.</div><button class="b orange" style="width:100%" data-act="fixnum" data-k="'+S.cur+'">Corriger le numéro</button></div>';
     var sendable=p.msg && /^(Message à envoyer|RELANCER|RAPPEL RDV|RDV prévu)$/.test(p.action);
     if(sendable){
       h+='<div class="box"><h3>'+(p.action==='RDV prévu'?'Confirmation du RDV (facultatif)':'Message prévu')+'</h3><div class="hint" style="margin:0 0 10px">'+
@@ -429,7 +434,8 @@ function drawFtab(){
     else if(!S.hist.length) h='<div class="empty"><div class="e">🕘</div>Rien encore. Les envois, appels et changements faits dans l\'appli apparaîtront ici.</div>';
     else h='<div class="box"><div class="hist">'+S.hist.map(function(x){return '<div class="hi"><div class="d">'+esc(x[0])+' · '+esc(x[1])+'</div><b>'+esc(x[2])+'</b>'+(x[3]?'<div class="x">'+esc(x[3])+'</div>':'')+'</div>'}).join('')+'</div></div>';
   } else {
-    h='<div class="box"><div class="kv"><div class="k">Numéro</div><div>'+esc(p.wa)+'</div>'+
+    h=(p.numBad?'<div class="box" style="background:var(--red-50)"><b style="color:var(--red)">📵 Numéro douteux</b><div class="hint" style="margin:4px 0 10px;color:var(--ink)">'+esc(p.numBad)+' : « '+esc(p.wa)+' ».</div>'+(w?'<button class="b orange" style="width:100%" data-act="fixnum" data-k="'+S.cur+'">Corriger le numéro</button>':'')+'</div>':'')+
+      '<div class="box"><div class="kv"><div class="k">Numéro</div><div>'+esc(p.wa)+(w&&!p.numBad?' · <a style="color:var(--teal);font-weight:600" data-act="fixnum" data-k="'+S.cur+'">corriger</a>':'')+'</div>'+
       (p.date?'<div class="k">Fiche reçue</div><div>'+fd(p.date)+'</div>':'')+
       p.details.map(function(d){return '<div class="k">'+esc(d[0])+'</div><div>'+esc(d[1])+'</div>'}).join('')+
       (p.prio?'<div class="k">Priorité</div><div>🔥 '+esc(p.prio)+'</div>':'')+
@@ -438,6 +444,7 @@ function drawFtab(){
   }
   b.innerHTML=h; b.scrollTop=0;
 }
+function hideOnlySheetKeep(){ $('sheet').className='sheet'; }
 function hideSheet(){ $('ov').className='ov'; $('sheet').className='sheet'; $('modal').className='modal'; }
 function closeSheet(){ var open=$('sheet').className==='sheet open'||$('modal').className==='modal open'; hideSheet(); if(open){ try{ if(history.state&&history.state.ea==='sheet') history.back(); }catch(e){} } }
 function val(id){ var e=$(id); return e?e.value:undefined; }
@@ -476,7 +483,7 @@ function callReport(k){
   var p=find(k); S.callK=k; S.callRes='';
   var m=$('modal');
   m.innerHTML='<h3>Appel à '+esc(p.nom)+'</h3><div class="hint" style="margin:0">Comment ça s\'est passé ?</div><div class="opts">'+
-    '<button class="opt" data-act="cres" data-r="repondu">✅ A répondu</button><button class="opt" data-act="cres" data-r="absent">📵 Pas de réponse</button><button class="opt" data-act="cres" data-r="rappeler">🔁 À rappeler plus tard</button></div>'+
+    '<button class="opt" data-act="cres" data-r="repondu">✅ A répondu</button><button class="opt" data-act="cres" data-r="absent">📵 Pas de réponse</button><button class="opt" data-act="cres" data-r="rappeler">🔁 À rappeler plus tard</button><button class="opt" data-act="fixnum" data-k="'+k+'">📵 Mauvais numéro</button></div>'+
     '<div id="cdate" class="hide"><label class="lbl">Rappeler le</label><input class="in" type="date" id="c-date" value="'+addDays(today(),1)+'"></div>'+
     '<label class="lbl">Note (facultatif)</label><input class="in" id="c-note" placeholder="Ex. : intéressé, en parle à ses parents">'+
     '<div class="cact"><button class="b ghost" data-act="closeall">Plus tard</button><button class="b pri" data-act="csave">Enregistrer</button></div>';
@@ -488,6 +495,46 @@ function callSave(){
   var p=find(S.callK), d=S.callRes==='rappeler'?val('c-date'):'', n=val('c-note');
   run('logCall',S.pin,p.kind,p.row,p.nom,S.callRes,d,n).then(function(res){ replace(res.row); bumpDone(); closeSheet(); render();
     toast(S.callRes==='rappeler'?'Rappel prévu le '+fds(d)+' ✓':'Appel noté ✓'); }).catch(err);
+}
+
+/* ---------- Mauvais numéros ---------- */
+function numCheck(raw){
+  var d=String(raw||'').replace(/[^0-9]/g,''); if(!d) return 'Numéro vide';
+  if(d.indexOf('00')===0) d=d.slice(2);
+  if(/^(\d)\1+$/.test(d.slice(-8)) || /^(12345678|23456789|87654321)$/.test(d.slice(-8))) return 'Numéro fictif';
+  var loc=d.length===8?d:(d.length===11&&d.indexOf('226')===0?d.slice(3):null);
+  if(loc) return /^[567]/.test(loc)?'':(/^2/.test(loc)?'Numéro fixe (pas de WhatsApp)':'Ne commence pas par 5, 6 ou 7');
+  if(d.indexOf('226')===0) return 'Il manque ou il y a trop de chiffres';
+  if(d.length>=10&&d.length<=15) return '';
+  return d.length<8?'Il manque des chiffres':'Nombre de chiffres incorrect';
+}
+function fixModal(k){
+  var p=find(k); S.fixK=k; var m=$('modal');
+  m.innerHTML='<h3>Numéro de '+esc(p.nom)+'</h3><div class="hint" style="margin:0">Numéro saisi : <b>'+esc(p.wa)+'</b>'+(p.numBad?' · '+esc(p.numBad):'')+'</div>'+
+    '<label class="lbl">Bon numéro WhatsApp</label><input class="in" id="fx-num" type="tel" inputmode="tel" placeholder="70 12 34 56" value="'+esc(p.numBad?'':p.wa)+'">'+
+    '<div class="hint" id="fx-hint">8 chiffres pour le Burkina, ou l\'indicatif du pays pour l\'étranger (ex. +225…).</div>'+
+    '<div class="cact"><button class="b ghost" data-act="closeall">Annuler</button><button class="b pri" id="fxBtn" data-act="fixsave">Enregistrer</button></div>'+
+    '<button class="more" style="margin-top:12px" data-act="fixlost">Impossible à joindre → classer en Perdu</button>';
+  $('ov').className='ov open'; m.className='modal open';
+  try{ if(!(history.state&&history.state.ea==='sheet')) history.pushState({ea:'sheet'},''); }catch(e){}
+  setTimeout(function(){ var i=$('fx-num'); if(i) i.focus(); },150);
+}
+function fixSave(){
+  var p=find(S.fixK), n=val('fx-num').trim(), why=numCheck(n);
+  if(!n){ toast('Entre le nouveau numéro.'); return; }
+  if(why && why.indexOf('fixe')<0){ $('fx-hint').innerHTML='<span style="color:var(--red)">⚠️ '+esc(why)+'</span>'; return; }
+  $('fxBtn').disabled=true;
+  run('fixNumber',S.pin,p.kind,p.row,p.nom,n).then(function(){
+    var d=n.replace(/[^0-9]/g,''); if(d.indexOf('00')===0) d=d.slice(2);
+    p.wa=n; p.num=d.length===8?'226'+d:d; p.numBad=''; keep(); closeSheet(); render();
+    toast('Numéro corrigé ✓ Le tableau se met à jour dans 1 à 2 minutes.');
+  }).catch(function(e){ var b=$('fxBtn'); if(b) b.disabled=false; err(e); });
+}
+function fixLost(){
+  var p=find(S.fixK), R=S.data.lists.raisons||[];
+  var raison=R.filter(function(r){return /num|joindre|injoignable/i.test(r)})[0] || R.filter(function(r){return /^autre/i.test(r)})[0] || R[0] || '';
+  var notes=(p.notes?p.notes+'\n':'')+'Numéro incorrect, impossible à joindre ('+fd(today())+')';
+  run('saveRow',S.pin,p.kind,p.row,p.nom,{etape:'Perdu',raison:raison,notes:notes}).then(function(res){ replace(res.row); closeSheet(); render(); toast('Fiche classée en Perdu ✓'); }).catch(err);
 }
 
 /* ---------- Ajouter ---------- */
@@ -513,6 +560,7 @@ function renderNew(){
 function addP(){
   var f={nom:val('n-nom'),wa:val('n-wa'),principal:val('n-main'),rentree:val('n-rentree'),source:val('n-src'),note:val('n-note')};
   if(!f.nom||!f.nom.trim()||!f.wa||!f.wa.trim()){ toast('Nom et numéro WhatsApp obligatoires.'); return; }
+  var bad=numCheck(f.wa); if(bad && bad.indexOf('fixe')<0){ toast('⚠️ Numéro : '+esc(bad)+'. Corrige-le avant d\'ajouter.'); return; }
   $('addBtn').disabled=true;
   run('addProspect',S.pin,S.newKind,f).then(function(){ toast('Prospect ajouté ✓ Il apparaîtra dans 1 à 2 minutes.'); renderNew(); setTimeout(load,70000); })
     .catch(function(e){ var b=$('addBtn'); if(b) b.disabled=false; err(e); });
@@ -583,6 +631,9 @@ document.addEventListener('click',function(e){
     case 'call': setTimeout(function(){ callReport(k||S.cur); },700); break;
     case 'cres': S.callRes=el.getAttribute('data-r'); [].forEach.call(document.querySelectorAll('.opt'),function(o){o.className='opt'+(o===el?' on':'')}); $('cdate').className=S.callRes==='rappeler'?'':'hide'; break;
     case 'csave': callSave(); break;
+    case 'fixnum': e.preventDefault(); $('sheet').className==='sheet open' ? (hideOnlySheetKeep(), fixModal(k||S.cur)) : fixModal(k||S.cur); break;
+    case 'fixsave': fixSave(); break;
+    case 'fixlost': fixLost(); break;
     case 'closeall': closeSheet(); break;
     case 'tpl': var p2=find(S.cur), t=$('f-libre'); t.value=TPL[Number(el.getAttribute('data-i'))][1].replace('{p}',String(p2.nom).trim()); t.focus(); break;
     case 'free': sendFree(); break;
@@ -598,6 +649,7 @@ document.addEventListener('click',function(e){
   }
 });
 document.addEventListener('input',function(e){ if(e.target.id==='q'){ S.q=e.target.value; var pos=e.target.selectionStart; render(); var q=$('q'); q.focus(); q.setSelectionRange(pos,pos); } });
+document.addEventListener('blur',function(e){ if(e.target.id==='n-wa'){ var w=numCheck(e.target.value); if(e.target.value && w) toast('⚠️ Numéro : '+esc(w)+'. Vérifie avec la personne.'); } },true);
 document.addEventListener('change',function(e){ if(e.target.id==='fet'){ S.etape=e.target.value; render(); } });
 $('pin').addEventListener('keyup',function(e){ if(e.key==='Enter') doLogin(); });
 
