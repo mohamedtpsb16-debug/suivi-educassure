@@ -95,6 +95,9 @@ nav button.on{color:var(--teal);background:var(--teal-l)}
 .two{display:grid;grid-template-columns:1.3fr 1fr;gap:10px}
 .msgfull{font-size:13.5px;line-height:1.5;background:#F5F9FA;border-radius:14px;padding:11px 12px;white-space:pre-wrap;border:1px solid #EAF2F3}
 .hint{font-size:12px;color:var(--mut);margin-top:8px;line-height:1.4}
+.tpl{display:flex;gap:6px;overflow-x:auto;margin-bottom:10px;scrollbar-width:none}.tpl::-webkit-scrollbar{display:none}
+.tpl button{flex:none;border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:7px 11px;font-size:12.5px;font-weight:700;color:var(--teal-d)}
+.chk{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--mut);margin-top:9px}
 .tile{display:flex;align-items:flex-start;gap:14px;background:#fff;border-radius:20px;padding:16px;margin-bottom:12px;box-shadow:0 3px 14px rgba(8,82,95,.07)}
 .tile .av{width:52px;height:52px;font-size:22px}
 .tile .tt{flex:1}
@@ -222,7 +225,7 @@ function header(list,todo){
   ch.innerHTML=['Tous','Études','Formations','Autres'].map(function(k){ var n=base.filter(function(p){return k==='Tous'||p.kind===k}).length;
     return '<button class="chip'+(S.kind===k?' on':'')+'" onclick="S.kind=\''+k+'\';render()">'+(ICON[k]?ICON[k]+' ':'')+k+'<i>'+n+'</i></button>'; }).join('');
 }
-function tab(t){ S.tab=t; ['today','all','new','dash'].forEach(function(x){document.getElementById('t-'+x).className=(x===t?'on':'')}); render(); if(t==='dash') loadDash(); window.scrollTo(0,0); }
+function tab(t,fromBack){ if(!fromBack && t!==S.tab){ try{ history.pushState({ea:'tab',t:t},''); }catch(e){} } S.tab=t; ['today','all','new','dash'].forEach(function(x){document.getElementById('t-'+x).className=(x===t?'on':'')}); render(); if(t==='dash') loadDash(); window.scrollTo(0,0); }
 
 function render(){
   var m=document.getElementById('main');
@@ -266,6 +269,7 @@ function card(p){
     btns+='<a class="b wa" href="'+waUrl(p.num,p.msg)+'" target="_blank" rel="noopener" onclick="sent(\''+k+'\')">'+WA+(p.action==='RELANCER'?'Relancer':p.action==='RAPPEL RDV'?'Rappeler':'Envoyer')+'</a>';
   if(canWrite() && p.action.indexOf('Passer')===0) btns+='<button class="b or" onclick="openSheet(\''+k+'\',true)">'+(p.action==='Passer en veille'?'🌙 En veille':'✖ Perdu')+'</button>';
   if(canWrite() && p.last) btns+='<button class="b sec" onclick="replied(\''+k+'\')">↩︎ A répondu</button>';
+  else if(canWrite() && S.tab==='all' && !ORDER[p.action] && p.etape!=='Perdu') btns+='<button class="b sec" onclick="quickSent(\''+k+'\')">📤 Envoyé</button>';
   btns+='<button class="b ghost" onclick="openSheet(\''+k+'\')">Ouvrir</button>';
   return '<div class="card'+(p.prio==='PRIORITÉ'?' prio':'')+'"><div class="ctop"><div class="av '+AV[p.kind]+'">'+esc(initials(p.nom))+'</div><div class="cinfo"><div class="nm">'+esc(p.nom)+'</div><div class="meta">'+det+(p.date?' · fiche du '+fd(p.date):'')+'</div></div>'+
     (p.action&&p.action!=='—'?'<div class="act '+actClass(p.action)+'">'+esc(p.action)+'</div>':'')+'</div>'+
@@ -283,6 +287,8 @@ function sent(k){
       run('undoSent',S.pin,p.kind,p.row,p.nom,res.prev).then(function(r2){ replace(r2.row); render(); toast('Annulé'); }).catch(err); });
   }).catch(err);
 }
+function quickSent(k){ var p=find(k);
+  run('saveRow',S.pin,p.kind,p.row,p.nom,{last:S.data.today,rel:0}).then(function(res){ replace(res.row); render(); toast('Noté : message envoyé aujourd\'hui. Les relances suivront si pas de réponse.'); }).catch(err); }
 function replied(k){ var p=find(k);
   run('markReplied',S.pin,p.kind,p.row,p.nom).then(function(res){ replace(res.row); render(); toast('Relances arrêtées ✓ Pense à changer l\'étape.','Ouvrir',function(){openSheet(k)}); }).catch(err); }
 
@@ -299,11 +305,16 @@ function openSheet(k,closing){
     (p.last?'<div>Dernier message</div><div>'+fd(p.last)+' · relance '+p.rel+'/'+p.maxRel+'</div>':'')+(p.next?'<div>Prochaine relance</div><div>'+(p.next.indexOf('-')>0?fd(p.next):esc(p.next))+'</div>':'')+'</div></div>';
   if(w && p.msg) h+='<div class="box"><h3>💬 Message prévu</h3><div class="msgfull">'+esc(p.msg)+'</div>'+
     (sendable?'<div class="btns"><a class="b wa" href="'+waUrl(p.num,p.msg)+'" target="_blank" onclick="closeSheet();sent(\''+k+'\')">'+WA+'Envoyer ce message</a></div>':'')+'</div>';
-  if(w) h+='<div class="box"><h3>✍️ Écrire un message</h3><textarea class="in" id="f-libre" placeholder="Bonjour '+esc(p.nom.split(' ')[0])+', …"></textarea>'+
+  if(w) h+='<div class="box"><h3>✍️ Écrire un message</h3><div class="tpl">'+TPL.map(function(t,i){return '<button onclick="useTpl(\''+k+'\','+i+')">'+t[0]+'</button>'}).join('')+'</div>'+
+    '<textarea class="in" id="f-libre" placeholder="Bonjour '+esc(p.nom.split(' ')[0])+', …"></textarea>'+
+    '<label class="chk"><input type="checkbox" id="f-wait" checked> J\'attends sa réponse (relances automatiques)</label>'+
     '<div class="btns"><button class="b wa" onclick="sendFree(\''+k+'\')">'+WA+'Envoyer sur WhatsApp</button></div><div class="hint">Le message s\'ouvre dans WhatsApp, prêt à partir, et une trace est gardée dans les notes.</div></div>';
   h+='<div class="box"><h3>🗂️ Suivi</h3>'+
     '<div class="fl">Étape</div><select class="sel" id="f-etape"'+dis+'>'+opts(L.etapes,et,true)+'</select>'+
     (p.hasRdv?'<div class="fl">'+(p.kind==='Études'?'Entretien':'Test')+' : date et heure</div><div class="two"><input class="in" type="date" id="f-rdv" value="'+esc(p.rdv)+'"'+dis+'>'+(p.hasHeure?'<input class="in" type="time" id="f-heure" value="'+esc(p.heure)+'"'+dis+'>':'<span></span>')+'</div>':'')+
+    '<div class="fl">Dernier message sans réponse</div><div class="two"><input class="in" type="date" id="f-last" value="'+esc(p.last)+'"'+dis+'>'+
+      '<select class="sel" id="f-rel"'+dis+'>'+[0,1,2,3,4,5].filter(function(n){return n<=p.maxRel}).map(function(n){return '<option value="'+n+'"'+(n===p.rel?' selected':'')+'>'+n+' relance'+(n>1?'s':'')+'</option>'}).join('')+'</select></div>'+
+    (w?'<div class="mini"><button class="b sec" style="padding:9px" onclick="document.getElementById(\'f-last\').value=S.data.today;document.getElementById(\'f-rel\').value=0">📤 Envoyé aujourd\'hui</button><button class="b ghost" style="padding:9px" onclick="document.getElementById(\'f-last\').value=\'\';document.getElementById(\'f-rel\').value=0">↩︎ A répondu</button></div>':'')+
     '<div class="fl">Montant encaissé (FCFA)</div><input class="in" type="number" inputmode="numeric" id="f-montant" value="'+esc(p.montant)+'"'+dis+'>'+
     '<div class="fl">Raison de la perte</div><select class="sel" id="f-raison"'+dis+'>'+opts(S.data.lists.raisons,p.raison,true)+'</select>'+
     (p.kind!=='Autres'?'<div class="fl">Responsable</div><select class="sel" id="f-resp"'+dis+'>'+opts(S.data.lists.resp,p.resp,true)+'</select>':'')+
@@ -311,23 +322,45 @@ function openSheet(k,closing){
     (w?'<div class="btns" style="margin-top:14px"><button class="b ghost" onclick="closeSheet()">Fermer</button><button class="b teal" id="saveBtn" onclick="save(\''+k+'\')">💾 Enregistrer</button></div><div class="hint">Changer l\'étape démarre automatiquement les messages de la nouvelle étape.</div>':'<div class="btns" style="margin-top:14px"><button class="b ghost" onclick="closeSheet()">Fermer</button></div>')+
     '</div>';
   var sh=document.getElementById('sheet'); sh.innerHTML=h; sh.scrollTop=0;
+  if(sh.className!=='sheet open'){ try{ history.pushState({ea:'sheet'},''); }catch(e){} }
   document.getElementById('ov').className='ov open'; sh.className='sheet open';
 }
-function closeSheet(){ document.getElementById('ov').className='ov'; document.getElementById('sheet').className='sheet'; }
+function hideSheet(){ document.getElementById('ov').className='ov'; document.getElementById('sheet').className='sheet'; }
+function closeSheet(){ if(document.getElementById('sheet').className==='sheet open'){ hideSheet(); try{ if(history.state&&history.state.ea==='sheet') history.back(); }catch(e){} } }
+window.addEventListener('popstate',function(e){
+  if(document.getElementById('sheet').className==='sheet open'){ hideSheet(); return; }
+  var st=e.state||{};
+  if(st.ea==='tab'){ tab(st.t,true); return; }
+  if(S.tab!=='today'){ tab('today',true); return; }
+  if(S.pin){ try{ history.pushState({ea:'home'},''); }catch(x){} toast('Appuie encore sur retour pour quitter','Quitter',function(){ history.go(-2); }); }
+});
+try{ history.replaceState({ea:'root'},''); history.pushState({ea:'home'},''); }catch(e){}
 function val(id){ var e=document.getElementById(id); return e?e.value:undefined; }
 function save(k){
   var p=find(k), f={etape:val('f-etape'),montant:val('f-montant'),raison:val('f-raison'),notes:val('f-notes')};
   if(p.hasRdv) f.rdv=val('f-rdv');
   if(p.hasHeure) f.heure=val('f-heure');
+  var nl=val('f-last'), nr=Number(val('f-rel'));
+  if(nl!==p.last || (nl && nr!==p.rel)){ f.last=nl; f.rel=nr; }
   if(p.kind!=='Autres') f.resp=val('f-resp');
   if(f.etape==='Perdu' && !f.raison){ toast('Choisis la raison de la perte avant d\'enregistrer.'); return; }
   document.getElementById('saveBtn').disabled=true;
   run('saveRow',S.pin,p.kind,p.row,p.nom,f).then(function(res){ replace(res.row); closeSheet(); render(); toast('Fiche enregistrée ✓'); }).catch(function(e){ var b=document.getElementById('saveBtn'); if(b) b.disabled=false; err(e); });
 }
+var TPL=[
+ ['🇬🇧 Anglais','Bonjour {p}, la formation en anglais démarre le lundi 11 janvier 2027 : 3 mois, 3 séances de 2h par semaine, 65 000 F. Les frais d\'inscription (10 000 F) sont offerts si vous vous inscrivez avant le 31 décembre. Souhaitez-vous réserver votre place ?'],
+ ['🇯🇵 Japonais','Bonjour {p}, la formation en japonais démarre le mardi 12 janvier 2027 : 3 séances de 2h par semaine, 50 000 F par mois. Les frais d\'inscription (10 000 F) sont offerts avant le 31 décembre. Souhaitez-vous réserver votre place ?'],
+ ['📅 Proposer un RDV','Bonjour {p}, je vous propose un rendez-vous à notre agence pour étudier votre projet ensemble. Quel jour et quelle heure vous conviennent cette semaine ?'],
+ ['📄 Documents','Bonjour {p}, pour avancer sur votre dossier, merci de nous envoyer : copie du passeport (ou CNIB), derniers bulletins et relevés de notes, diplômes obtenus. Vous pouvez les envoyer ici en photo ou en PDF.'],
+ ['📍 Contacts','Educ\'Assure — WhatsApp : +226 68 53 53 94 · Appels : 51 63 44 44 / 54 44 00 44 · E-mail : assureeduc@gmail.com. N\'hésitez pas à passer nous voir !'],
+ ['🙏 Merci','Bonjour {p}, merci pour votre confiance ! Nous restons disponibles pour toute question.']
+];
+function useTpl(k,i){ var p=find(k), first=String(p.nom).trim(); var t=document.getElementById('f-libre'); t.value=TPL[i][1].replace('{p}',first); t.focus(); }
 function sendFree(k){
-  var p=find(k), t=val('f-libre'); if(!t||!t.trim()){ toast('Écris d\'abord ton message.'); return; }
+  var p=find(k), t=val('f-libre'); if(!t||!t.trim()){ toast('Écris d\'abord ton message ou choisis un modèle.'); return; }
+  var wait=document.getElementById('f-wait').checked;
   window.open(waUrl(p.num,t.trim()),'_blank');
-  run('logMessage',S.pin,p.kind,p.row,p.nom,t.trim()).then(function(res){ replace(res.row); closeSheet(); render(); toast('Message ouvert dans WhatsApp ✓ (noté dans la fiche)'); }).catch(err);
+  run('logMessage',S.pin,p.kind,p.row,p.nom,t.trim(),wait).then(function(res){ replace(res.row); closeSheet(); render(); toast('Message ouvert dans WhatsApp ✓ (noté dans la fiche)'); }).catch(err);
 }
 
 function renderNew(){
