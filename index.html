@@ -356,8 +356,17 @@ function renderDash(){
   h+=block('🎓 Études à l\'étranger',10,17)+block('🗣️ Formations en langues',21,27)+block('📄 Autres demandes',31,34)+block('🏫 Lycées',38,42);
   var R=d.right, s='<div class="box"><h3>📣 Par source</h3>';
   for(var i=2;i<R.length;i++){ if(!R[i][0]) continue; s+='<div class="drow"><div class="l"'+(R[i][0]==='Total'?' style="font-weight:800"':'')+'><span>'+esc(R[i][0])+'</span><span class="v">'+esc(R[i][1])+' fiche(s) <span class="o">· '+esc(R[i][2])+' F</span></span></div></div>'; }
-  m.innerHTML=h+s+'</div>';
+  var T=S.data.ntfy, sub='https://ntfy.sh/'+T;
+  var n='<div class="box"><h3>🔔 Notifications sur ce téléphone</h3><div class="hint" style="margin:0 0 10px;font-size:13px;color:var(--ink)">'+
+    '1. Installe l\'appli gratuite <b>ntfy</b> (Play Store ou App Store).<br>2. Dans ntfy, touche <b>+</b> et entre ce nom :<br>'+
+    '<div class="msgfull" style="margin:8px 0;font-weight:800;text-align:center;user-select:all">'+esc(T)+'</div>'+
+    '3. Touche <b>Tester</b> ci-dessous : une notification doit arriver.</div>'+
+    '<div class="btns"><button class="b sec" onclick="copyTopic()">📋 Copier le nom</button><button class="b or" onclick="testN()">🔔 Tester</button></div>'+
+    '<div class="hint">Tu recevras : chaque nouvelle fiche, le programme du jour à 8h, un rappel à 16h s\'il reste des actions, et chaque RDV 1h avant.</div></div>';
+  m.innerHTML=h+s+'</div>'+n;
 }
+function copyTopic(){ var t=S.data.ntfy; try{ navigator.clipboard.writeText(t).then(function(){toast('Nom copié ✓')},function(){toast(esc(t))}); }catch(e){ toast(esc(t)); } }
+function testN(){ run('testNotif',S.pin).then(function(){ toast('Notification envoyée ✓ Regarde ton téléphone.'); }).catch(err); }
 
 var tt=null;
 function toast(msg,btn,fn){ var t=document.getElementById('toast'); document.getElementById('toastTxt').innerHTML=msg; var b=document.getElementById('toastBtn');
