@@ -501,8 +501,9 @@ function callSave(){
 function numCheck(raw){
   var d=String(raw||'').replace(/[^0-9]/g,''); if(!d) return 'Numéro vide';
   if(d.indexOf('00')===0) d=d.slice(2);
-  if(/^(\d)\1+$/.test(d.slice(-8)) || /^(12345678|23456789|87654321)$/.test(d.slice(-8))) return 'Numéro fictif';
+  if(/^(\d)\1+$/.test(d)) return 'Numéro fictif';
   var loc=d.length===8?d:(d.length===11&&d.indexOf('226')===0?d.slice(3):null);
+  if(loc && (/^(\d)\1+$/.test(loc) || /^(12345678|23456789|87654321)$/.test(loc))) return 'Numéro fictif';
   if(loc) return /^[0567]/.test(loc)?'':(/^2/.test(loc)?'Numéro fixe (pas de WhatsApp)':'Ne commence pas par 0, 5, 6 ou 7');
   if(d.indexOf('226')===0) return 'Il manque ou il y a trop de chiffres';
   if(d.length>=10&&d.length<=15) return '';
@@ -512,7 +513,7 @@ function fixModal(k){
   var p=find(k); S.fixK=k; var m=$('modal');
   m.innerHTML='<h3>Numéro de '+esc(p.nom)+'</h3><div class="hint" style="margin:0">Numéro saisi : <b>'+esc(p.wa)+'</b>'+(p.numBad?' · '+esc(p.numBad):'')+'</div>'+
     '<label class="lbl">Bon numéro WhatsApp</label><input class="in" id="fx-num" type="tel" inputmode="tel" placeholder="70 12 34 56" value="'+esc(p.numBad?'':p.wa)+'">'+
-    '<div class="hint" id="fx-hint">8 chiffres pour le Burkina, ou l\'indicatif du pays pour l\'étranger (ex. +225…).</div>'+
+    '<div class="hint" id="fx-hint">8 chiffres (ex. 06 65 42 40), avec ou sans +226. Pour l\'étranger, mets l\'indicatif (ex. +225…).</div>'+
     '<div class="cact"><button class="b ghost" data-act="closeall">Annuler</button><button class="b pri" id="fxBtn" data-act="fixsave">Enregistrer</button></div>'+
     '<button class="more" style="margin-top:12px" data-act="fixlost">Impossible à joindre → classer en Perdu</button>';
   $('ov').className='ov open'; m.className='modal open';
