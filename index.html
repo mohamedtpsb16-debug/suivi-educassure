@@ -192,16 +192,19 @@ function doLogin(){
   le.textContent='';
   run('login',pin).then(function(){ S.pin=pin; store('ea_pin',pin); start(); }).catch(function(e){ le.textContent=msgOf(e); });
 }
-function logout(silent){ store('ea_pin',null); S.pin=''; S.data=null; document.getElementById('app').className='hide'; document.getElementById('login').className=''; document.getElementById('pin').value='';
+function logout(silent){ store('ea_pin',null); store('ea_data',null); S.pin=''; S.data=null; document.getElementById('app').className='hide'; document.getElementById('login').className=''; document.getElementById('pin').value='';
   document.getElementById('lerr').textContent = silent===true ? 'Code expiré ou modifié : entre ton code.' : ''; }
-function start(){ document.getElementById('login').className='hide'; document.getElementById('app').className=''; render(); load(); }
+function start(){ document.getElementById('login').className='hide'; document.getElementById('app').className='';
+  if(!S.data){ try{ var c=JSON.parse(localStorage.getItem('ea_data')||'null'); if(c && c.kinds){ S.data=c; hello(c); } }catch(e){} }
+  render(); load(); }
+function hello(d){ document.getElementById('hello').textContent='Bonjour '+d.user+' 👋';
+  document.getElementById('sub').textContent=d.role+' · '+fd(d.today)+(d.ecriture?'':' · consultation'); }
 
 function load(){
-  run('getData',S.pin).then(function(d){ S.data=d;
-    document.getElementById('hello').textContent='Bonjour '+d.user+' 👋';
-    document.getElementById('sub').textContent=d.role+' · '+fd(d.today)+(d.ecriture?'':' · consultation');
+  run('getData',S.pin).then(function(d){ S.data=d; hello(d); keep();
     render(); if(S.tab==='dash') loadDash(); }).catch(err);
 }
+function keep(){ try{ localStorage.setItem('ea_data',JSON.stringify(S.data)); }catch(e){} }
 function all(){ var a=[]; if(!S.data) return a; ['Études','Formations','Autres'].forEach(function(k){ a=a.concat(S.data.kinds[k]); }); return a; }
 function isTodo(p){ return !!ORDER[p.action]; }
 function sortTodo(a,b){ var pa=(a.prio==='PRIORITÉ')?0:1, pb=(b.prio==='PRIORITÉ')?0:1; if(pa!==pb) return pa-pb; var oa=ORDER[a.action]||9, ob=ORDER[b.action]||9; if(oa!==ob) return oa-ob; return (a.date||'').localeCompare(b.date||''); }
@@ -271,7 +274,7 @@ function card(p){
     '<div class="btns">'+btns+'</div></div>';
 }
 
-function replace(r){ var arr=S.data.kinds[r.kind]; for(var i=0;i<arr.length;i++) if(arr[i].row===r.row) arr[i]=r; }
+function replace(r){ var arr=S.data.kinds[r.kind]; for(var i=0;i<arr.length;i++) if(arr[i].row===r.row) arr[i]=r; keep(); }
 function sent(k){
   var p=find(k), action=p.action;
   if(action==='RAPPEL RDV'){ toast('Rappel ouvert dans WhatsApp ✓'); return; }
@@ -339,7 +342,8 @@ function renderNew(){
     '<div class="hint" style="margin:4px 6px">« Remplir ici » : tu remplis la fiche avec la personne (visite, appel, passage à l\'agence). « Envoyer le lien » : elle la remplit elle-même. Le prospect apparaît dans l\'appli 1 à 2 minutes après (bouton ⟳).</div>';
 }
 
-function loadDash(){ run('getDashboard',S.pin).then(function(d){ S.dash=d; if(S.tab==='dash') renderDash(); }).catch(err); }
+function loadDash(){ if(!S.dash){ try{ S.dash=JSON.parse(localStorage.getItem('ea_dash')||'null'); }catch(e){} if(S.dash&&S.tab==='dash') renderDash(); }
+  run('getDashboard',S.pin).then(function(d){ S.dash=d; store('ea_dash',JSON.stringify(d)); if(S.tab==='dash') renderDash(); }).catch(err); }
 function dd(v){ return /^\d{4}-\d{2}-\d{2}$/.test(v)?fd(v):v; }
 function num(v){ return parseFloat(String(v).replace(/[\s  ]/g,'').replace(',','.'))||0; }
 function renderDash(){
