@@ -664,7 +664,7 @@ function renderDash(list){
   var enc=list.reduce(function(a,p){return a+(Number(p.montant)||0)},0);
   var h='<div class="rhero"><div class="m">'+mn(ym).charAt(0).toUpperCase()+mn(ym).slice(1)+' '+ym.slice(0,4)+'</div>'+
     '<div class="stats"><div><b>'+mois.length+'</b><span>fiches</span></div><div><b>'+rdvM+'</b><span>rendez-vous</span></div><div><b>'+(enc>=1e6?(enc/1e6).toFixed(1).replace('.',',')+' M':enc>=1e3?Math.round(enc/1e3)+' k':enc)+'</b><span>FCFA encaissés</span></div></div>'+
-    '<button class="lnk" data-act="bilan" data-m="'+ym+'"><span>📄 Bilan du mois pour la Direction</span><span>›</span></button></div>';
+    '<button class="lnk" data-act="bilan" data-m="'+ym+'"><span>📄 Bilan pour la Direction</span><span>›</span></button></div>';
   // Objectifs
   var plan=list.filter(function(p){return (p.date||'')>=PLAN.debut}), doss=list.filter(function(p){return p.etape==='Dossier ouvert'}).length;
   var ins=function(f){ return list.filter(function(p){return p.kind==='Formations'&&p.etape==='Inscrit et payé'&&(mainDetail(p)||'').indexOf(f)>=0}).length; };
@@ -872,11 +872,27 @@ var PLAN={debut:'2026-11-16',fin:'2027-01-31',
 function attendu(pts,t){ var prev=[PLAN.debut,0]; for(var i=0;i<pts.length;i++){ var p=pts[i]; if(t<=p[0]){ var a=new Date(prev[0]),b=new Date(p[0]),c=new Date(t); return Math.round(prev[1]+(p[1]-prev[1])*Math.max(0,(c-a)/(b-a||1))); } prev=p; } return prev[1]; }
 
 
-/* ---------- Bilan du mois (PDF) ---------- */
-function bilan(ym){
-  var pr=$('print'); pr.className=''; try{ history.pushState({ea:'print'},''); }catch(e){} pr.innerHTML='<div class="pbar"><button class="b ghost" data-act="bclose">← Retour</button></div><div class="empty"><div class="e">⏳</div>Préparation du bilan…</div>';
-  run('getBilan',S.pin,ym).then(function(b){
-    var p=ym.split('-'), mois=MOISL[Number(p[1])-1]+' '+p[0], O=b.offres, sum=function(f){ return Object.keys(O).reduce(function(a,k){return a+(O[k][f]||0)},0); };
+/* ---------- Bilan (PDF) : choix de la période ---------- */
+function bilanDates(){ var t=today(), ym=t.slice(0,7), pm=addDays(ym+'-01',-1);
+  var lundi=addDays(t,-((new Date(t+'T12:00:00Z').getUTCDay()+6)%7));
+  return { mois:[ym+'-01',t], prec:[pm.slice(0,7)+'-01',pm], sem:[lundi,t], j7:[addDays(t,-6),t], plan:['2026-11-16',t],
+           perso:[val('b-du')||S.bdu||ym+'-01', val('b-au')||S.bau||t] }[S.bper||'mois']; }
+function bilanChoix(){
+  var P=[['mois','Ce mois'],['prec','Mois dernier'],['sem','Cette semaine'],['j7','7 derniers jours'],['plan','Depuis le 16 nov.'],['perso','Autre période']];
+  var m=$('modal'), d=bilanDates();
+  m.innerHTML='<h3>📄 Bilan pour la Direction</h3><div class="hint" style="margin:0">Choisis la période.</div><div class="opts" style="grid-template-columns:1fr 1fr">'+
+    P.map(function(x){return '<button class="opt'+((S.bper||'mois')===x[0]?' on':'')+'" data-act="bper" data-p="'+x[0]+'" style="text-align:center;padding:11px 8px">'+x[1]+'</button>'}).join('')+'</div>'+
+    ((S.bper==='perso')?'<div class="two" style="margin-top:4px"><div><label class="lbl">Du</label><input class="in" type="date" id="b-du" value="'+d[0]+'"></div><div><label class="lbl">Au</label><input class="in" type="date" id="b-au" value="'+d[1]+'"></div></div>':
+      '<div class="hint" style="text-align:center;margin-top:12px">Du '+fd(d[0])+' au '+fd(d[1])+'</div>')+
+    '<div class="cact"><button class="b ghost" data-act="closeall">Annuler</button><button class="b pri" data-act="bgo">Voir le bilan</button></div>';
+  $('ov').className='ov open'; m.className='modal open';
+  try{ if(!(history.state&&history.state.ea==='sheet')) history.pushState({ea:'sheet'},''); }catch(e){}
+}
+function bilan(du,au){
+  var pr=$('print'); pr.className=''; try{ if(history.state&&history.state.ea==='sheet') history.replaceState({ea:'print'},''); else history.pushState({ea:'print'},''); }catch(e){} pr.innerHTML='<div class="pbar"><button class="b ghost" data-act="bclose">← Retour</button></div><div class="empty"><div class="e">⏳</div>Préparation du bilan…</div>';
+  run('getBilan',S.pin,du,au).then(function(b){
+    var p=du.split('-'), q=au.split('-'), fin=new Date(Date.UTC(+q[0],+q[1],0)).getUTCDate();
+    var mois=(p[2]==='01'&&p[0]===q[0]&&p[1]===q[1]&&(+q[2]===fin||au===today()))?'Bilan de '+MOISL[Number(p[1])-1]+' '+p[0]+(au===today()&&+q[2]!==fin?' (au '+fd(au)+')':''):'Bilan du '+fd(du)+' au '+fd(au), O=b.offres, sum=function(f){ return Object.keys(O).reduce(function(a,k){return a+(O[k][f]||0)},0); };
     var tr=function(c){ return '<tr>'+c.map(function(x,i){return '<td'+(i?' class="n"':'')+'>'+x+'</td>'}).join('')+'</tr>'; };
     var th=function(c){ return '<tr>'+c.map(function(x,i){return '<th'+(i?' class="n"':'')+'>'+x+'</th>'}).join('')+'</tr>'; };
     var lab={'Études':'Études à l\'étranger','Formations':'Formations en langues','Autres':'Autres services'};
@@ -885,12 +901,12 @@ function bilan(ym){
     var eq=Object.keys(b.equipe);
     var list=all(), dossiers=list.filter(function(x){return x.etape==='Dossier ouvert'}).length;
     var h='<div class="pbar"><button class="b ghost" data-act="bclose">← Retour</button><button class="b pri" data-act="bprint">📄 Enregistrer en PDF / imprimer</button></div>'+
-      '<div class="doc"><div class="top"><div><h1>Bilan de '+esc(mois)+'</h1><div style="color:var(--mut)">Service Marketing et Commercial · Plan Nov. 2026 – Janv. 2027</div></div><img src="logo.png" alt="Educ\'Assure"></div>'+
+      '<div class="doc"><div class="top"><div><h1>'+esc(mois)+'</h1><div style="color:var(--mut)">Service Marketing et Commercial · Plan Nov. 2026 – Janv. 2027</div></div><img src="logo.png" alt="Educ\'Assure"></div>'+
       '<div class="k4"><div><b>'+sum('fiches')+'</b>fiches reçues</div><div><b>'+sum('rdv')+'</b>entretiens et tests</div><div><b>'+sum('gagnes')+'</b>dossiers / inscriptions</div><div><b style="font-size:16px">'+fmtF(sum('encaisse'))+'</b>encaissé</div></div>'+
       '<h2>Résultats par offre</h2><table>'+th(['Offre','Fiches','RDV','Gagnés','Perdus','Encaissé'])+Object.keys(O).map(function(k){var o=O[k];return tr([lab[k]||k,o.fiches,o.rdv,o.gagnes,o.perdus,fmtF(o.encaisse)]);}).join('')+'</table>'+
       '<h2>D\'où viennent les prospects</h2><table>'+th(['Source','Fiches','Gagnés','Encaissé'])+src.map(function(k){var o=b.sources[k];return tr([esc(k),o.fiches,o.gagnes,fmtF(o.encaisse)]);}).join('')+'</table>'+
-      '<h2>Lycées et partenaires</h2><div>'+(b.lycees.visites||0)+' visite'+((b.lycees.visites||0)>1?'s':'')+' ce mois · '+(b.lycees.visitesTotal||0)+' lycée(s) visité(s) sur 30 depuis le début · '+(b.lycees.accords||0)+' partenariat(s) accepté(s) · '+(b.lycees.stands||0)+' journée(s) portes ouvertes</div>'+
-      (par.length?'<table style="margin-top:8px">'+th(['Partenaire','Fiches du mois','Gagnés','Encaissé'])+par.map(function(c){var q=b.partenaires[c];return tr([esc(c+' · '+(q.nom||'')),q.fiches,q.gagnes,fmtF(q.encaisse)]);}).join('')+'</table>':'')+
+      '<h2>Lycées et partenaires</h2><div>'+(b.lycees.visites||0)+' visite'+((b.lycees.visites||0)>1?'s':'')+' sur la période · '+(b.lycees.visitesTotal||0)+' lycée(s) visité(s) sur 30 depuis le début · '+(b.lycees.accords||0)+' partenariat(s) accepté(s) · '+(b.lycees.stands||0)+' journée(s) portes ouvertes</div>'+
+      (par.length?'<table style="margin-top:8px">'+th(['Partenaire','Fiches (période)','Gagnés','Encaissé'])+par.map(function(c){var q=b.partenaires[c];return tr([esc(c+' · '+(q.nom||'')),q.fiches,q.gagnes,fmtF(q.encaisse)]);}).join('')+'</table>':'')+
       '<h2>Activité de l\'équipe</h2><table>'+th(['Personne','Messages','Appels','RDV fixés','Visites / relances partenaires'])+eq.map(function(n){var e=b.equipe[n];return tr([esc(n),e.messages,e.appels,e.rdv,e.visites]);}).join('')+'</table>'+
       '<h2>Où en est-on du plan (au '+fd(today())+')</h2><table>'+th(['Objectif au 31 janvier','Réalisé','Cible'])+
         tr(['Fiches prospects (depuis le 16 nov.)',list.filter(function(x){return (x.date||'')>='2026-11-16'}).length,'600'])+tr(['Dossiers ouverts (Études)',dossiers,'10 à 15'])+
@@ -955,7 +971,9 @@ document.addEventListener('click',function(e){
     case 'pasave': partActSave(); break;
     case 'plink': S.plink=el.getAttribute('data-o'); var sb=document.querySelector('#sheet .sbody'), y=sb?sb.scrollTop:0; partSheet(S.pcur); var sb2=document.querySelector('#sheet .sbody'); if(sb2) sb2.scrollTop=y; break;
     case 'allsrc': S.allSrc=!S.allSrc; render(); break;
-    case 'bilan': bilan(el.getAttribute('data-m')); break;
+    case 'bilan': bilanChoix(); break;
+    case 'bper': S.bper=el.getAttribute('data-p'); bilanChoix(); break;
+    case 'bgo': var bd=bilanDates(); if(!bd[0]||!bd[1]||bd[0]>bd[1]){ toast('Choisis une période valide.'); break; } hideSheet(); bilan(bd[0],bd[1]); break;
     case 'bprint': window.print(); break;
     case 'bclose': $('print').className='hide'; try{ if(history.state&&history.state.ea==='print') history.back(); }catch(x){} break;
     case 'pcopy': try{ navigator.clipboard.writeText(el.getAttribute('data-l')).then(function(){toast('Lien copié ✓')}); }catch(x){ toast(esc(el.getAttribute('data-l'))); } break;
