@@ -344,7 +344,8 @@ function start(){ $('login').className='hide'; $('app').className='';
 function hello(){ var d=S.data; $('hello').textContent='Bonjour '+d.user+' 👋';
   var j=new Date(d.today+'T12:00:00Z').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',timeZone:'UTC'});
   $('sub').textContent=(d.role?d.role+' · ':'')+j+(d.ecriture?'':' · consultation'); }
-function load(){ return run('getData',S.pin).then(function(d){ S.data=d; hello(); keep(); render(); if(S.tab==='dash') loadDash(); if(!S.parts||S.tab==='part') loadParts(); }).catch(err); }
+function load(force){ if(!S.parts||S.tab==='part') loadParts(); if(S.tab==='dash') loadDash();
+  return run('getData',S.pin,!!force).then(function(d){ S.data=d; hello(); keep(); render(); }).catch(err); }
 
 /* ---------- Classement du jour ---------- */
 function all(){ var a=[]; if(!S.data) return a; KINDS.forEach(function(k){ a=a.concat(S.data.kinds[k]); }); return a.filter(function(p){ return p.doublon!=='Doublon'; }); }
@@ -931,7 +932,7 @@ document.addEventListener('click',function(e){
   var a=el.getAttribute('data-act'), k=el.getAttribute('data-k');
   switch(a){
     case 'login': doLogin(); break;
-    case 'reload': load(); if(S.tab==='dash') loadDash(); if(S.tab==='part') loadParts(); break;
+    case 'reload': load(true); break;
     case 'logout': logout(); break;
     case 'tab': tab(el.getAttribute('data-t')); break;
     case 'kind': S.kind=k; render(); break;
