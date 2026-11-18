@@ -198,6 +198,7 @@ nav .dot b{position:absolute;top:-4px;right:-10px;background:var(--or);color:#ff
     <button id="t-today" class="on" data-act="tab" data-t="today"><span class="dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg><b id="navn" class="hide"></b></span>Aujourd'hui</button>
     <button id="t-all" data-act="tab" data-t="all"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>Prospects</button>
     <button id="t-new" data-act="tab" data-t="new"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>Ajouter</button>
+    <button id="t-part" data-act="tab" data-t="part"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V10l7-5 7 5v11"/><path d="M10 21v-5h4v5"/></svg>Partenaires</button>
     <button id="t-dash" data-act="tab" data-t="dash"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 20V11M12 20V5M19 20v-6"/></svg>Résultats</button>
   </nav>
 </section>
@@ -209,7 +210,7 @@ nav .dot b{position:absolute;top:-4px;right:-10px;background:var(--or);color:#ff
 
 <script>
 var API='https://script.google.com/macros/s/AKfycbzfvLiFU8IE-GTQ3zO8PU5iuPGVtyzQabbeIbq4WukPozalpnaHG8FY6HO4w_Ah/exec';
-var S={pin:'',data:null,tab:'today',kind:'Tous',q:'',etape:'',dash:null,team:null,period:'sem',cur:null,ftab:'',showOubli:false,newKind:'Études'};
+var S={pin:'',data:null,tab:'today',kind:'Tous',q:'',etape:'',dash:null,team:null,period:'sem',cur:null,ftab:'',showOubli:false,newKind:'Études',parts:null,pf:'todo',pq:''};
 var KINDS=['Études','Formations','Autres'];
 var ICON={'Études':'🎓','Formations':'🗣️','Autres':'📄'};
 var AV={'Études':'e','Formations':'f','Autres':'a'};
@@ -265,6 +266,15 @@ function run(fn){ var args=[].slice.call(arguments,1); busy(true);
 }
 function today(){ return S.data ? S.data.today : new Date().toISOString().slice(0,10); }
 function canWrite(){ return S.data && S.data.ecriture; }
+function canSend(){ return S.data && S.data.ecriture && S.data.envoi!==false; }
+var JOURS=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'], MOISL=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+/* « aujourd'hui », « demain », « ce vendredi 21 novembre » (même semaine) ou « le lundi 30 novembre » */
+function quand(iso){ if(!iso) return ''; var a=new Date(iso+'T12:00:00Z'), b=new Date(today()+'T12:00:00Z'), n=Math.round((a-b)/864e5);
+  var j=JOURS[a.getUTCDay()]+' '+a.getUTCDate()+(a.getUTCDate()===1?'er':'')+' '+MOISL[a.getUTCMonth()];
+  return n===0?'aujourd\'hui':n===1?'demain':n===-1?'hier':(n>1&&n<7)?'ce '+j:'le '+j; }
+function hh(h){ return h?' à '+h.replace(':','h').replace(/h00$/,'h'):''; }
+function rdvNom(p){ return p.kind==='Études'?'entretien d\'orientation':'test de niveau'+(mainDetail(p)?' en '+mainDetail(p).toLowerCase():''); }
+function partName(c){ var x=(S.parts&&S.parts.list||[]).filter(function(q){return q.code===c})[0]; return x?x.nom:c; }
 function key(p){ return p.kind+'|'+p.row; }
 function find(k){ var x=k.split('|'); return S.data.kinds[x[0]].filter(function(p){return p.row==x[1]})[0]; }
 function waUrl(num,text){ return 'https://wa.me/'+encodeURIComponent(num)+(text?'?text='+encodeURIComponent(text):''); }
@@ -280,7 +290,7 @@ function doLogin(){
   le.textContent='';
   run('login',pin).then(function(){ S.pin=pin; store('ea_pin',pin); start(); }).catch(function(e){ le.textContent=msgOf(e); });
 }
-function logout(silent){ store('ea_pin',null); store('ea_data',null); store('ea_dash',null); S.pin=''; S.data=null;
+function logout(silent){ store('ea_pin',null); store('ea_data',null); store('ea_dash',null); store('ea_parts',null); S.parts=null; S.pin=''; S.data=null;
   $('app').className='hide'; $('login').className=''; $('pin').value='';
   $('lerr').textContent = silent===true ? 'Code expiré ou modifié : entre ton code.' : ''; }
 function start(){ $('login').className='hide'; $('app').className='';
@@ -288,8 +298,8 @@ function start(){ $('login').className='hide'; $('app').className='';
   render(); load(); }
 function hello(){ var d=S.data; $('hello').textContent='Bonjour '+d.user+' 👋';
   var j=new Date(d.today+'T12:00:00Z').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',timeZone:'UTC'});
-  $('sub').textContent=j.charAt(0).toUpperCase()+j.slice(1)+(d.ecriture?'':' · consultation'); }
-function load(){ return run('getData',S.pin).then(function(d){ S.data=d; hello(); keep(); render(); if(S.tab==='dash') loadDash(); }).catch(err); }
+  $('sub').textContent=(d.role?d.role+' · ':'')+j+(d.ecriture?'':' · consultation'); }
+function load(){ return run('getData',S.pin).then(function(d){ S.data=d; hello(); keep(); render(); if(S.tab==='dash') loadDash(); if(!S.parts||S.tab==='part') loadParts(); }).catch(err); }
 
 /* ---------- Classement du jour ---------- */
 function all(){ var a=[]; if(!S.data) return a; KINDS.forEach(function(k){ a=a.concat(S.data.kinds[k]); }); return a.filter(function(p){ return p.doublon!=='Doublon'; }); }
@@ -313,15 +323,15 @@ function byPrio(a,b){ var pa=a.prio==='PRIORITÉ'?0:1, pb=b.prio==='PRIORITÉ'?0
 /* ---------- Affichage ---------- */
 function setChips(base){
   var ch=$('chips');
-  if(S.tab==='new'||S.tab==='dash'){ ch.innerHTML=''; ch.className='chips hide'; return; }
+  if(S.tab==='new'||S.tab==='dash'||S.tab==='part'){ ch.innerHTML=''; ch.className='chips hide'; return; }
   ch.className='chips';
   ch.innerHTML=['Tous'].concat(KINDS).map(function(k){ var n=base.filter(function(p){return k==='Tous'||p.kind===k}).length;
     return '<button class="chip'+(S.kind===k?' on':'')+'" data-act="kind" data-k="'+k+'">'+(ICON[k]?ICON[k]+' ':'')+k+'<i>'+n+'</i></button>'; }).join('');
 }
 function tab(t,fromBack){
   if(!fromBack && t!==S.tab){ try{ history.pushState({ea:'tab',t:t},''); }catch(e){} }
-  S.tab=t; ['today','all','new','dash'].forEach(function(x){ $('t-'+x).className=(x===t?'on':''); });
-  render(); if(t==='dash') loadDash(); window.scrollTo(0,0);
+  S.tab=t; ['today','all','new','part','dash'].forEach(function(x){ $('t-'+x).className=(x===t?'on':''); });
+  render(); if(t==='dash') loadDash(); if(t==='part'||t==='dash') loadParts(); window.scrollTo(0,0);
 }
 function render(){
   var m=$('main');
@@ -332,6 +342,7 @@ function render(){
   if(S.tab==='all') return renderAll(list);
   if(S.tab==='new') return renderNew();
   if(S.tab==='dash') return renderDash(list,todo);
+  if(S.tab==='part') return renderParts(list);
 }
 function renderToday(list,todo){
   setChips(todo);
@@ -339,7 +350,8 @@ function renderToday(list,todo){
   var done=Number(stored(doneKey()))||0, tot=done+todo.length, pct=tot?Math.round(done/tot*100):100;
   var h='<div class="hero"><div class="big">'+(todo.length?(todo.length+' action'+(todo.length>1?'s':'')+' pour aujourd\'hui'):'Tout est à jour 🎉')+'</div>'+
     '<div class="sm">'+(done?done+' déjà faite'+(done>1?'s':'')+' · ':'')+(todo.length?'Commence par le haut : le plus urgent est en premier.':'Aucun message ni relance en attente.')+'</div>'+
-    '<div class="prog"><i style="width:'+pct+'%"></i></div></div>';
+    '<div class="prog"><i style="width:'+pct+'%"></i></div></div>'+groupeBox()+
+    (canWrite()&&!canSend()?'<div class="grp-hint" style="margin:0 2px 10px">ℹ️ Ton accès permet de consulter, ajouter et mettre à jour les fiches et les partenaires. Les messages sont envoyés par Mohamed ou Sandrine.</div>':'');
   GROUPS.forEach(function(g){
     var items=shown.filter(function(p){return groupOf(p)===g.id}).sort(byPrio);
     if(!items.length) return;
@@ -373,11 +385,13 @@ function card(p,g){
   var act='';
   if(g && canWrite()){
     if(g.id==='num') act='<button class="b orange" data-act="fixnum" data-k="'+k+'">📵 '+g.btn+'</button>';
+    else if(g.id==='cb'&&!canSend()) act='';
+    else if(g.id==='cb'&&p.cbWhy==='RDV manqué') act='<button class="b wa" data-act="reprog" data-k="'+k+'">'+ICO.wa+'Reprogrammer</button><a class="b soft" href="tel:+'+esc(p.num)+'" data-act="call" data-k="'+k+'" style="flex:0 0 auto;padding:11px 14px">'+ICO.tel+'</a>';
     else if(g.id==='cb') act='<a class="b pri" href="tel:+'+esc(p.num)+'" data-act="call" data-k="'+k+'">'+ICO.tel+'Appeler</a>';
     else if(g.id==='maj') act='<button class="b orange" data-act="open" data-k="'+k+'" data-ft="suivi">'+ICO.pen+(p.action==='RDV passé'?'Comment s\'est passé le RDV ?':p.action==='Passer en veille'?'Passer en veille ?':'Classer en perdu ?')+'</button>';
-    else if(p.msg) act='<a class="b wa" href="'+waUrl(p.num,p.msg)+'" target="_blank" rel="noopener" data-act="sent" data-k="'+k+'">'+ICO.wa+g.btn+'</a>';
-    if(g.id==='rel') act+='<button class="b ghost" data-act="replied" data-k="'+k+'" title="A répondu">'+ICO.back+'</button>';
-  } else if(!g && canWrite()){
+    else if(p.msg && canSend()) act='<a class="b wa" href="'+waUrl(p.num,p.msg)+'" target="_blank" rel="noopener" data-act="sent" data-k="'+k+'">'+ICO.wa+g.btn+'</a>';
+ if(g.id==='rel' && canSend()) act+='<button class="b ghost" data-act="replied" data-k="'+k+'" title="A répondu">'+ICO.back+'</button>';
+  } else if(!g && canSend()){
     act='<a class="b soft" href="'+waUrl(p.num)+'" target="_blank" rel="noopener">'+ICO.wa+'WhatsApp</a><a class="b soft" href="tel:+'+esc(p.num)+'" data-act="call" data-k="'+k+'">'+ICO.tel+'Appeler</a>';
   }
   return '<div class="card"><div class="ctop" data-act="open" data-k="'+k+'"><div class="av '+AV[p.kind]+'">'+esc(initials(p.nom))+'</div>'+
@@ -389,19 +403,19 @@ function card(p,g){
 function openSheet(k,ft){
   var p=find(k); if(!p) return; S.cur=k; S.hist=null;
   var sendable=p.msg && /^(Message à envoyer|RELANCER|RAPPEL RDV|RDV prévu)$/.test(p.action);
-  S.ftab = ft || (sendable && canWrite() ? 'msg' : 'suivi');
+  S.ftab = ft || (sendable && canSend() ? 'msg' : 'suivi');
   var sh=$('sheet');
   sh.innerHTML='<div class="shead"><div class="grab"></div><div class="ctop"><div class="av '+AV[p.kind]+'" style="width:48px;height:48px">'+esc(initials(p.nom))+'</div>'+
     '<div class="cinfo"><div class="nm" style="font-size:17px">'+esc(p.nom)+'</div><div class="sub">'+ICON[p.kind]+' '+esc(mainDetail(p)||p.kind)+' · '+esc(p.etape||'Nouveau')+'</div></div></div>'+
-    '<div class="qa"><a class="wa" href="'+waUrl(p.num)+'" target="_blank" rel="noopener">'+ICO.wa+'WhatsApp</a><a href="tel:+'+esc(p.num)+'" data-act="call" data-k="'+k+'">'+ICO.tel+'Appeler</a>'+
-    (canWrite()?'<button data-act="ftab" data-ft="msg">'+ICO.pen+'Écrire</button>':'')+'</div>'+
+    (canSend()?'<div class="qa"><a class="wa" href="'+waUrl(p.num)+'" target="_blank" rel="noopener">'+ICO.wa+'WhatsApp</a><a href="tel:+'+esc(p.num)+'" data-act="call" data-k="'+k+'">'+ICO.tel+'Appeler</a>'+
+    '<button data-act="ftab" data-ft="msg">'+ICO.pen+'Écrire</button></div>':'')+
     '<div class="tabs" id="ftabs"></div></div><div class="sbody" id="sbody"></div>';
   drawFtab();
   if(sh.className!=='sheet open'){ try{ history.pushState({ea:'sheet'},''); }catch(e){} }
   $('ov').className='ov open'; sh.className='sheet open';
 }
 function drawFtab(){
-  var p=find(S.cur), w=canWrite(), T=[['suivi','Suivi'],['msg','Message'],['hist','Historique'],['info','Infos']].filter(function(t){return w||t[0]!=='msg'});
+  var p=find(S.cur), w=canWrite(), T=[['suivi','Suivi'],['msg','Message'],['hist','Historique'],['info','Infos']].filter(function(t){return canSend()||t[0]!=='msg'});
   $('ftabs').innerHTML=T.map(function(t){return '<button class="'+(S.ftab===t[0]?'on':'')+'" data-act="ftab" data-ft="'+t[0]+'">'+t[1]+'</button>'}).join('');
   var b=$('sbody'), h='';
   if(S.ftab==='msg'){
@@ -421,8 +435,14 @@ function drawFtab(){
     var L=S.data.lists[p.kind], dis=w?'':' disabled';
     var opts=function(arr,v){ return '<option value=""></option>'+arr.map(function(x){return '<option'+(x===v?' selected':'')+'>'+esc(x)+'</option>'}).join(''); };
     var et=S.closing||p.etape; S.closing=null;
+    if(p.hasRdv && p.rdv && w){
+      var pass=p.rdv<today();
+      h+='<div class="box" style="background:var(--vio-50)"><h3 style="color:var(--vio)">📅 '+(p.kind==='Études'?'Entretien':'Test')+' '+esc(quand(p.rdv))+esc(hh(p.heure))+'</h3>'+
+        '<div class="hint" style="margin:2px 0 10px;color:var(--ink)">'+(pass?'Le rendez-vous est passé. La personne est-elle venue ?':p.rdv===today()?'C\'est aujourd\'hui. Si la personne ne vient pas, touche « Absent ».':'Un changement ? Reporte ou annule le rendez-vous.')+'</div>'+
+        '<div class="cact" style="flex-wrap:wrap"><button class="b soft" data-act="rdvm" data-t="reporte">🔁 Reporter</button>'+(p.rdv<=today()?'<button class="b orange" data-act="rdvm" data-t="absent">🚫 Absent</button>':'')+'<button class="b ghost" data-act="rdvm" data-t="annule">✕ Annuler</button></div></div>';
+    }
     h+='<div class="box">';
-    if(p.action==='RDV passé') h+='<div class="hint" style="margin:0 0 6px;color:#B35A14">Le RDV du '+fds(p.rdv)+' est passé : choisis la nouvelle étape (ex. « Proposition envoyée ») ou change la date s\'il est reporté.</div>';
+    if(p.action==='RDV passé') h+='<div class="hint" style="margin:0 0 6px;color:#B35A14">Le RDV du '+fds(p.rdv)+' est passé : si la personne est venue, choisis la nouvelle étape (ex. « Proposition envoyée »). Sinon, touche « Absent » ci-dessus.</div>';
     h+='<label class="lbl" style="margin-top:0">Étape</label><select class="sel" id="f-etape"'+dis+'>'+opts(L.etapes,et)+'</select>'+
       (p.hasRdv?'<label class="lbl">'+(p.kind==='Études'?'Entretien':'Test')+' : date et heure</label><div class="two"><input class="in" type="date" id="f-rdv" value="'+esc(p.rdv)+'"'+dis+'>'+(p.hasHeure?'<input class="in" type="time" id="f-heure" value="'+esc(p.heure)+'"'+dis+'>':'<span></span>')+'</div>':'')+
       '<label class="lbl">Dernier message sans réponse</label><div class="two"><input class="in" type="date" id="f-last" value="'+esc(p.last)+'"'+dis+'>'+
@@ -431,6 +451,7 @@ function drawFtab(){
       '<label class="lbl">Montant encaissé (FCFA)</label><input class="in" type="number" inputmode="numeric" id="f-montant" value="'+esc(p.montant)+'"'+dis+'>'+
       '<label class="lbl">Raison de la perte <span style="font-weight:400">(si perdu)</span></label><select class="sel" id="f-raison"'+dis+'>'+opts(S.data.lists.raisons,p.raison)+'</select>'+
       (p.kind!=='Autres'?'<label class="lbl">Responsable</label><select class="sel" id="f-resp"'+dis+'>'+opts(S.data.lists.resp,p.resp)+'</select>':'')+
+      '<label class="lbl">Lycée / partenaire qui l\'a apporté</label><select class="sel" id="f-part"'+dis+'><option value="">— Aucun —</option>'+partOpts(p.part)+'</select>'+
       '<label class="lbl">Notes</label><textarea class="in" id="f-notes"'+dis+'>'+esc(p.notes)+'</textarea>'+
       (w?'<div class="savebar"><button class="btn-main" style="margin:0" id="saveBtn" data-act="save">Enregistrer</button></div><div class="hint">Changer l\'étape lance automatiquement les messages de la nouvelle étape.</div>':'')+'</div>';
   } else if(S.ftab==='hist'){
@@ -445,7 +466,8 @@ function drawFtab(){
       p.details.map(function(d){return '<div class="k">'+esc(d[0])+'</div><div>'+esc(d[1])+'</div>'}).join('')+
       (p.prio?'<div class="k">Priorité</div><div>🔥 '+esc(p.prio)+'</div>':'')+
       (p.last?'<div class="k">Dernier message</div><div>'+fd(p.last)+' · relance '+p.rel+'/'+p.maxRel+'</div>':'')+
-      (p.callback?'<div class="k">À rappeler le</div><div>'+fd(p.callback)+'</div>':'')+'</div></div>';
+      (p.callback?'<div class="k">À rappeler le</div><div>'+fd(p.callback)+(p.cbWhy?' · '+esc(p.cbWhy):'')+'</div>':'')+
+      (p.part?'<div class="k">Partenaire</div><div>'+esc(p.part)+' · '+esc(partName(p.part))+'</div>':'')+'</div></div>';
   }
   b.innerHTML=h; b.scrollTop=0;
 }
@@ -473,7 +495,11 @@ function save(){
   if(nl!==p.last || (nl && nr!==p.rel)){ f.last=nl; f.rel=nr; }
   if(f.etape==='Perdu' && !f.raison){ toast('Choisis la raison de la perte avant d\'enregistrer.'); return; }
   $('saveBtn').disabled=true;
-  run('saveRow',S.pin,p.kind,p.row,p.nom,f).then(function(res){ replace(res.row); closeSheet(); render(); toast('Fiche enregistrée ✓'); })
+  var np=val('f-part');
+  var after=function(res){ replace(res.row); closeSheet(); render(); toast('Fiche enregistrée ✓'); };
+  run('saveRow',S.pin,p.kind,p.row,p.nom,f).then(function(res){
+    if(np!==undefined && np!==(p.part||'')) return run('setPartner',S.pin,p.kind,p.row,p.nom,np).then(function(){ res.row.part=np; after(res); });
+    after(res); })
     .catch(function(e){ var b=$('saveBtn'); if(b) b.disabled=false; err(e); });
 }
 function sendFree(){
@@ -503,9 +529,11 @@ function callSave(){
 }
 
 /* ---------- Mauvais numéros ---------- */
+/* Google Sheets enlève le 0 du début (06654240 → 6654240) : on le remet. */
+function digits(raw){ var d=String(raw||'').replace(/[^0-9]/g,''); if(d.indexOf('00')===0) d=d.slice(2);
+  if(d.length===7) d='0'+d; else if(d.length===10&&d.indexOf('226')===0) d='2260'+d.slice(3); return d; }
 function numCheck(raw){
-  var d=String(raw||'').replace(/[^0-9]/g,''); if(!d) return 'Numéro vide';
-  if(d.indexOf('00')===0) d=d.slice(2);
+  var d=digits(raw); if(!d) return 'Numéro vide';
   if(/^(\d)\1+$/.test(d)) return 'Numéro fictif';
   var loc=d.length===8?d:(d.length===11&&d.indexOf('226')===0?d.slice(3):null);
   if(loc && (/^(\d)\1+$/.test(loc) || /^(12345678|23456789|87654321)$/.test(loc))) return 'Numéro fictif';
@@ -531,7 +559,7 @@ function fixSave(){
   if(why && why.indexOf('fixe')<0){ $('fx-hint').innerHTML='<span style="color:var(--red)">⚠️ '+esc(why)+'</span>'; return; }
   $('fxBtn').disabled=true;
   run('fixNumber',S.pin,p.kind,p.row,p.nom,n).then(function(){
-    var d=n.replace(/[^0-9]/g,''); if(d.indexOf('00')===0) d=d.slice(2);
+    var d=digits(n);
     p.wa=n; p.num=d.length===8?'226'+d:d; p.numBad=''; keep(); closeSheet(); render();
     toast('Numéro corrigé ✓ Le tableau se met à jour dans 1 à 2 minutes.');
   }).catch(function(e){ var b=$('fxBtn'); if(b) b.disabled=false; err(e); });
@@ -555,7 +583,8 @@ function renderNew(){
     '<label class="lbl">Numéro WhatsApp</label><input class="in" id="n-wa" type="tel" inputmode="tel" placeholder="70 00 00 00">'+
     '<label class="lbl">'+MAIN[k]+'</label><select class="sel" id="n-main"><option value=""></option>'+opts.map(function(o){return '<option>'+o+'</option>'}).join('')+'</select>'+
     (k==='Études'?'<label class="lbl">Rentrée visée</label><select class="sel" id="n-rentree"><option value=""></option><option>Février ou mars 2027</option><option>Septembre 2027</option><option>Plus tard</option></select>':'')+
-    '<label class="lbl">Comment nous a-t-il connus ?</label><select class="sel" id="n-src"><option>Appel / agence</option><option>Recommandation</option><option>Facebook ou Instagram</option><option>TikTok</option><option>WhatsApp</option><option>Visite d\'un lycée</option><option>Autre</option></select>'+
+    '<label class="lbl">Comment nous a-t-il connus ?</label><select class="sel" id="n-src"><option>Appel / agence</option><option>Recommandation</option><option>Facebook ou Instagram</option><option>TikTok</option><option>WhatsApp</option><option>Publicité Facebook ou Instagram</option><option>Visite d\'un lycée</option><option>Lycée / partenaire</option><option>Autre</option></select>'+
+    '<div id="n-partw" class="hide"><label class="lbl">Quel lycée / partenaire ?</label><select class="sel" id="n-part"><option value=""></option>'+partOpts('')+'</select></div>'+
     (k==='Autres'?'<label class="lbl">Précisions</label><input class="in" id="n-note">':'')+
     '<button class="btn-main" id="addBtn" data-act="add">Ajouter le prospect</button></div>'+
     '<div class="box"><h3>Ou utiliser la fiche complète</h3><div class="hint" style="margin:0 0 4px">La personne la remplit elle-même, ou toi avec elle.</div>'+
@@ -564,7 +593,8 @@ function renderNew(){
   $('main').innerHTML=h;
 }
 function addP(){
-  var f={nom:val('n-nom'),wa:val('n-wa'),principal:val('n-main'),rentree:val('n-rentree'),source:val('n-src'),note:val('n-note')};
+  var f={nom:val('n-nom'),wa:val('n-wa'),principal:val('n-main'),rentree:val('n-rentree'),source:val('n-src'),note:val('n-note'),partenaire:val('n-part')||''};
+  if(f.source==='Visite d\'un lycée'||f.source==='Lycée / partenaire'){ if(!f.partenaire){ toast('Choisis le lycée ou le partenaire.'); return; } } else f.partenaire='';
   if(!f.nom||!f.nom.trim()||!f.wa||!f.wa.trim()){ toast('Nom et numéro WhatsApp obligatoires.'); return; }
   var bad=numCheck(f.wa); if(bad && bad.indexOf('fixe')<0){ toast('⚠️ Numéro : '+esc(bad)+'. Corrige-le avant d\'ajouter.'); return; }
   $('addBtn').disabled=true;
@@ -582,7 +612,7 @@ function num(v){ return parseFloat(String(v).replace(/[\s  ]/g,'').replace(',
 function renderDash(list,todo){
   setChips([]);
   var c=function(id){ return todo.filter(function(p){return groupOf(p)===id}).length; };
-  var h='<div class="box"><h3>Aujourd\'hui</h3><div class="kpis"><div class="kpi"><b>'+(c('msg')+c('rel'))+'</b><span>messages</span></div><div class="kpi"><b>'+(c('rdv')+c('cb'))+'</b><span>RDV et appels</span></div><div class="kpi"><b>'+c('maj')+'</b><span>à mettre à jour</span></div></div></div>';
+  var h=objBox(list)+sourceBox(list)+'<div class="box"><h3>Aujourd\'hui</h3><div class="kpis"><div class="kpi"><b>'+(c('msg')+c('rel'))+'</b><span>messages</span></div><div class="kpi"><b>'+(c('rdv')+c('cb'))+'</b><span>RDV et appels</span></div><div class="kpi"><b>'+c('maj')+'</b><span>à mettre à jour</span></div></div></div>';
   // Équipe
   var T=S.team;
   h+='<div class="box"><div style="display:flex;justify-content:space-between;align-items:center"><h3>L\'équipe</h3><div class="seg" style="width:170px;padding:3px"><button class="'+(S.period==='sem'?'on':'')+'" data-act="per" data-p="sem" style="padding:6px">7 jours</button><button class="'+(S.period==='mois'?'on':'')+'" data-act="per" data-p="mois" style="padding:6px">Ce mois</button></div></div>';
@@ -614,6 +644,181 @@ function renderDash(list,todo){
   $('main').innerHTML=h;
 }
 
+/* ---------- Rendez-vous : reporter, absent, annuler ---------- */
+function rdvModal(t){
+  var p=find(S.cur); S.rdvT=t; var m=$('modal'), nm=rdvNom(p), send=canSend();
+  var msg={ reporte:'',
+    absent:'Bonjour '+p.nom.trim()+', nous vous attendions '+quand(p.rdv)+hh(p.heure)+' pour votre '+nm+' à Educ\'Assure. Pas de souci, cela arrive ! Quel jour et quelle heure vous conviennent pour le reprogrammer ?',
+    annule:'Bonjour '+p.nom.trim()+', c\'est bien noté : votre '+nm+' prévu '+quand(p.rdv)+hh(p.heure)+' est annulé. Dites-nous simplement quand vous souhaitez le reprogrammer, nous restons disponibles.' }[t];
+  var h='<h3>'+{reporte:'🔁 Reporter le rendez-vous',absent:'🚫 '+esc(p.nom)+' n\'est pas venu(e)',annule:'✕ Annuler le rendez-vous'}[t]+'</h3>';
+  if(t==='reporte') h+='<div class="hint" style="margin:0">Actuellement : '+esc(quand(p.rdv)+hh(p.heure))+'</div><label class="lbl">Nouvelle date et heure</label><div class="two"><input class="in" type="date" id="r-date" value="'+addDays(today(),1)+'"><input class="in" type="time" id="r-heure" value="'+esc(p.heure||'10:00')+'"></div>';
+  if(t==='absent') h+='<div class="hint" style="margin:0">La date est effacée et les relances reprennent pour reprogrammer.</div><label class="lbl">Le rappeler le</label><input class="in" type="date" id="r-cb" value="'+addDays(today(),1)+'">';
+  if(t!=='reporte') h+='<label class="lbl">'+(t==='absent'?'Note (facultatif)':'Motif (facultatif)')+'</label><input class="in" id="r-note" placeholder="'+(t==='absent'?'Ex. : pas joignable':'Ex. : voyage, examens…')+'">';
+  if(send) h+='<label class="chk"><input type="checkbox" id="r-send" checked> Prévenir sur WhatsApp</label><textarea class="in" id="r-msg" style="margin-top:8px;min-height:110px">'+esc(msg)+'</textarea>';
+  h+='<div class="cact"><button class="b ghost" data-act="closeall">Retour</button><button class="b pri" id="rBtn" data-act="rdvsave">Valider</button></div>';
+  m.innerHTML=h; hideOnlySheetKeep(); $('ov').className='ov open'; m.className='modal open';
+  if(t==='reporte') rdvMsg();
+}
+function rdvMsg(){ var p=find(S.cur), d=val('r-date'), hr=val('r-heure'), t=$('r-msg'); if(!t||S.rdvT!=='reporte') return;
+  t.value='Bonjour '+p.nom.trim()+', votre '+rdvNom(p)+' avec Educ\'Assure est reporté à '+quand(d).replace(/^le /,'')+hh(hr)+'. Merci de confirmer votre présence en répondant OUI.'; }
+function rdvSave(){
+  var p=find(S.cur), t=S.rdvT, d={}, send=$('r-send')&&$('r-send').checked, txt=send?val('r-msg').trim():'';
+  if(t==='reporte'){ d.rdv=val('r-date'); d.heure=val('r-heure'); if(!d.rdv){ toast('Choisis la nouvelle date.'); return; } }
+  else { d.note=val('r-note')||''; if(t==='absent') d.cb=val('r-cb'); }
+  if(txt){ d.texte=txt; window.open(waUrl(p.num,txt),'_blank'); }
+  $('rBtn').disabled=true;
+  run('rdvAction',S.pin,p.kind,p.row,p.nom,t,d).then(function(res){ replace(res.row); bumpDone(); closeSheet(); render();
+    toast({reporte:'RDV reporté à '+quand(d.rdv)+hh(d.heure)+' ✓',absent:'Absence notée · rappel '+quand(d.cb)+' ✓',annule:'RDV annulé ✓'}[t]); })
+    .catch(function(e){ var b=$('rBtn'); if(b) b.disabled=false; err(e); });
+}
+/* Rappel après un RDV manqué : message pour reprogrammer */
+function reprog(k){ var p=find(k), t='Bonjour '+p.nom.trim()+', c\'est Educ\'Assure. Nous n\'avons pas pu faire votre '+rdvNom(p)+'. Quel jour et quelle heure vous arrangent pour le reprogrammer ?';
+  window.open(waUrl(p.num,t),'_blank');
+  run('logMessage',S.pin,p.kind,p.row,p.nom,t,true).then(function(res){ replace(res.row); bumpDone(); render(); toast('Message noté ✓'); }).catch(err); }
+
+/* ---------- Envois groupés (dates clés) ---------- */
+function groupesActifs(){ var t=today(); return (S.data.groupes||[]).filter(function(g){ return g.du<=t && t<=g.au; }); }
+function groupeCibles(g){ return all().filter(function(p){ if(p.kind!==g.kind||isClosed(p)||p.numBad||(p.grp||[]).indexOf(g.id)>=0) return false;
+  if(g.pays){ var d=p.details.filter(function(x){return x[0]==='Destination'})[0]; if(!d||d[1].indexOf(g.pays)<0) return false; }
+  if(g.kind==='Formations' && /Inscrit/.test(p.etape)) return false; return true; }); }
+function groupeTexte(g,p){ var lim=g.id.indexOf('chine')===0?'2027-01-31':'2026-12-31', n=Math.round((new Date(lim+'T12:00:00Z')-new Date(today()+'T12:00:00Z'))/864e5);
+  return g.texte.replace('{p}',p.nom.trim()).replace('{formation}',(mainDetail(p)||'langue').toLowerCase()).replace('{n}',n).replace('{fin}',quand(lim)); }
+function groupeBox(){ if(!canSend()) return ''; return groupesActifs().map(function(g){ var c=groupeCibles(g); if(!c.length) return '';
+  return '<div class="hero" style="background:var(--or-50)"><div class="big" style="font-size:16px">📣 '+esc(g.titre)+'</div><div class="sm" style="color:var(--ink)">'+c.length+' personne'+(c.length>1?'s':'')+' à prévenir (jusqu\'au '+fds(g.au)+'). Un message prêt pour chacune, tu envoies une par une.</div>'+
+    '<div class="cact"><button class="b orange" data-act="grp" data-g="'+g.id+'">Commencer l\'envoi</button></div></div>'; }).join(''); }
+function grpStart(id){ S.grp=id; S.grpSkip=[]; grpNext(); }
+function grpNext(){ var g=(S.data.groupes||[]).filter(function(x){return x.id===S.grp})[0], c=groupeCibles(g).filter(function(p){return S.grpSkip.indexOf(key(p))<0}), m=$('modal');
+  if(!c.length){ closeSheet(); render(); toast('Envoi groupé terminé ✓'); return; }
+  var p=c[0]; S.grpK=key(p);
+  m.innerHTML='<h3>📣 '+esc(g.titre)+'</h3><div class="hint" style="margin:0">Encore '+c.length+' · '+esc(p.nom)+' · '+esc(p.etape||'Nouveau')+'</div>'+
+    '<textarea class="in" id="g-msg" style="margin-top:12px;min-height:130px">'+esc(groupeTexte(g,p))+'</textarea>'+
+    '<div class="cact"><button class="b ghost" data-act="grpskip">Passer</button><button class="b wa" data-act="grpsend">'+ICO.wa+'Envoyer</button></div>'+
+    '<button class="more" style="margin-top:10px" data-act="closeall">Faire une pause</button>';
+  $('ov').className='ov open'; m.className='modal open';
+  try{ if(!(history.state&&history.state.ea==='sheet')) history.pushState({ea:'sheet'},''); }catch(e){}
+}
+function grpSend(){ var p=find(S.grpK), t=val('g-msg').trim(); window.open(waUrl(p.num,t),'_blank');
+  run('sendGroup',S.pin,p.kind,p.row,p.nom,S.grp,t).then(function(res){ replace(res.row); bumpDone(); grpNext(); }).catch(err); }
+
+/* ---------- Lycées et partenaires ---------- */
+function loadParts(){ if(!S.parts){ try{ S.parts=JSON.parse(stored('ea_parts')||'null'); }catch(e){} }
+  return run('getPartners',S.pin).then(function(r){ S.parts=r; store('ea_parts',JSON.stringify(r)); if(S.tab==='part'||S.tab==='dash') render(); }).catch(err); }
+function partOpts(sel){ var L=(S.parts&&S.parts.list||[]).filter(function(x){return !x.vide});
+  return L.map(function(x){ return '<option value="'+esc(x.code)+'"'+(x.code===sel?' selected':'')+'>'+esc(x.code+' · '+x.nom)+'</option>'; }).join(''); }
+function partStats(code){ var s={fiches:0,gagnes:0,montant:0,list:[]}; all().forEach(function(p){ if(p.part!==code) return; s.fiches++; s.list.push(p);
+  if(/^(Dossier ouvert|Inscrit et payé|En cours|Terminé)$/.test(p.etape)) s.gagnes++; s.montant+=Number(p.montant)||0; }); return s; }
+function partDue(x){ return !x.vide && x.next && x.next<=today() && !/Pas intéressé/.test(x.etape); }
+function renderParts(){
+  var P=S.parts, m=$('main');
+  if(!P){ m.innerHTML='<div class="empty"><div class="e">⏳</div>Chargement…</div>'; return; }
+  var L=P.list.filter(function(x){return !x.vide}), q=S.pq.toLowerCase();
+  var F=[['todo','À faire',L.filter(partDue).length],['lyc','Lycées',L.filter(function(x){return x.type==='Lycée'}).length],['autres','Autres partenaires',L.filter(function(x){return x.type!=='Lycée'}).length],['tous','Tous',L.length]];
+  var shown=L.filter(function(x){ return (S.pf==='tous'||(S.pf==='todo'&&partDue(x))||(S.pf==='lyc'&&x.type==='Lycée')||(S.pf==='autres'&&x.type!=='Lycée')) &&
+      (!q||(x.code+' '+x.nom+' '+x.quartier+' '+x.contact).toLowerCase().indexOf(q)>=0); })
+    .sort(function(a,b){ return (a.next||'9').localeCompare(b.next||'9')||a.code.localeCompare(b.code); });
+  var vis=L.filter(function(x){return x.type==='Lycée'&&x.visite}).length;
+  var h='<div class="hero"><div class="big">🏫 '+vis+' lycée'+(vis>1?'s':'')+' visité'+(vis>1?'s':'')+' sur 30</div><div class="prog"><i style="width:'+Math.min(100,Math.round(vis/30*100))+'%"></i></div>'+
+    '<div class="sm" style="margin-top:8px">'+L.length+' lycées et partenaires · '+L.filter(partDue).length+' à relancer aujourd\'hui</div></div>';
+  h+='<div class="chips" style="padding:0 0 10px">'+F.map(function(f){return '<button class="chip'+(S.pf===f[0]?' on':'')+'" data-act="pf" data-f="'+f[0]+'">'+f[1]+'<i>'+f[2]+'</i></button>'}).join('')+'</div>';
+  h+='<input class="search" id="pq" placeholder="Rechercher un lycée, un partenaire, un quartier…" value="'+esc(S.pq)+'">';
+  if(canWrite()) h+='<button class="btn-main" style="margin:0 0 14px" data-act="pnew">+ Ajouter un lycée ou un partenaire</button>';
+  if(!shown.length) h+='<div class="empty"><div class="e">'+(S.pf==='todo'?'🎉':'🏫')+'</div>'+(S.pf==='todo'?'Aucune relance prévue aujourd\'hui.':'Rien ici pour l\'instant.')+'</div>';
+  h+=shown.map(function(x){ var st=partStats(x.code), due=partDue(x);
+    return '<div class="card"><div class="ctop" data-act="popen" data-c="'+esc(x.code)+'"><div class="av '+(x.type==='Lycée'?'e':'a')+'" style="font-size:12px">'+esc(x.code)+'</div>'+
+      '<div class="cinfo"><div class="nm">'+esc(x.nom)+'</div><div class="sub">'+esc([x.type,x.etape||'À visiter',x.quartier].filter(Boolean).join(' · '))+'</div>'+
+      '<div class="sub">'+st.fiches+' fiche'+(st.fiches>1?'s':'')+' · '+st.gagnes+' gagné'+(st.gagnes>1?'s':'')+(st.montant?' · '+fmtF(st.montant):'')+'</div></div>'+
+      (due?'<span class="flag hot">À relancer</span>':x.next?'<span class="flag rdv">'+fds(x.next)+'</span>':'')+'</div>'+
+      (canWrite()?'<div class="cact"><button class="b soft" data-act="pvis" data-c="'+esc(x.code)+'">✅ Visite faite</button><button class="b soft" data-act="prel" data-c="'+esc(x.code)+'">🔁 Relance '+(x.tent?'('+x.tent+'/3)':'')+'</button><button class="b ghost" data-act="popen" data-c="'+esc(x.code)+'">Fiche</button></div>':'')+'</div>'; }).join('');
+  m.innerHTML=h;
+}
+function pfind(c){ return S.parts.list.filter(function(x){return x.code===c})[0]; }
+function partSheet(c){
+  var x=c?pfind(c):{code:'',nom:'',type:'Lycée',etape:'À visiter'}, P=S.parts, w=canWrite(), dis=w?'':' disabled'; S.pcur=c||'';
+  var o=function(arr,v){ return '<option value=""></option>'+arr.map(function(a){return '<option'+(a===v?' selected':'')+'>'+esc(a)+'</option>'}).join(''); };
+  var inp=function(id,lab,v,type){ return '<label class="lbl">'+lab+'</label><input class="in" id="p-'+id+'" type="'+(type||'text')+'" value="'+esc(v||'')+'"'+dis+'>'; };
+  var st=c?partStats(c):null, h='';
+  if(c){ var link=x.lien||((P.fiches||{})['Études']+'?lycee='+c), qr='https://api.qrserver.com/v1/create-qr-code/?size=360x360&margin=10&data='+encodeURIComponent(link);
+    var share='Bonjour 👋 Vous souhaitez étudier à l\'étranger ? Remplissez cette fiche (1 minute) et Educ\'Assure vous recontacte : '+link;
+    h+='<div class="box"><h3>📊 Ce qu\'il nous apporte</h3><div class="kpis"><div class="kpi"><b>'+st.fiches+'</b><span>fiches</span></div><div class="kpi"><b>'+st.gagnes+'</b><span>dossiers / inscrits</span></div><div class="kpi"><b style="font-size:16px">'+(st.montant?fmtF(st.montant):'0 F')+'</b><span>encaissé</span></div></div>'+
+      (st.list.length?'<div style="margin-top:10px">'+st.list.slice(0,20).map(function(p){return '<div class="row" data-act="open" data-k="'+key(p)+'"><span>'+ICON[p.kind]+' '+esc(p.nom)+'</span><span class="o">'+esc(p.etape||'Nouveau')+'</span></div>'}).join('')+'</div>':'')+'</div>'+
+      '<div class="box"><h3>🔗 Son lien et son QR code</h3><div class="hint" style="margin:0 0 10px">Les fiches remplies avec ce lien (Études) lui sont comptées automatiquement. Pour les autres prospects, choisis-le dans leur fiche.</div>'+
+      '<div class="msg" style="font-size:13px;word-break:break-all;user-select:all">'+esc(link)+'</div>'+
+      '<div style="text-align:center;margin-top:10px"><img src="'+qr+'" alt="QR code" style="width:180px;height:180px;border-radius:12px"></div>'+
+      '<div class="cact"><button class="b soft" data-act="pcopy" data-l="'+esc(link)+'">Copier le lien</button><a class="b soft" href="'+qr+'" target="_blank" rel="noopener">QR à imprimer</a><a class="b soft" href="https://wa.me/?text='+encodeURIComponent(share)+'" target="_blank" rel="noopener">'+ICO.wa+'Partager</a></div></div>';
+  }
+  h+='<div class="box"><h3>'+(c?'Informations':'Nouveau lycée ou partenaire')+'</h3>'+
+    '<label class="lbl" style="margin-top:6px">Type</label><select class="sel" id="p-type"'+dis+'>'+o(P.types||['Lycée'],x.type).replace('<option value=""></option>','')+'</select>'+
+    inp('nom','Nom',x.nom)+inp('quartier','Quartier / ville',x.quartier)+
+    '<div class="two"><div>'+inp('contact','Contact (nom, fonction)',x.contact)+'</div><div>'+inp('tel','Téléphone',x.tel,'tel')+'</div></div>'+
+    '<label class="lbl">Étape</label><select class="sel" id="p-etape"'+dis+'>'+o(P.etapes||[],x.etape)+'</select>'+
+    '<div class="two"><div>'+inp('rdv','Rendez-vous le',x.rdv,'date')+'</div><div>'+inp('visite','Visité le',x.visite,'date')+'</div></div>'+
+    '<div class="two"><div>'+inp('next','Prochaine action le',x.next,'date')+'</div><div>'+inp('jpo','Portes ouvertes le',x.jpo,'date')+'</div></div>'+
+    inp('todo','À faire',x.todo)+
+    '<div class="two"><div><label class="lbl">Moyen de relance</label><select class="sel" id="p-moyen"'+dis+'>'+o(P.moyens||[],x.moyen)+'</select></div><div><label class="lbl">Tentatives</label><select class="sel" id="p-tent"'+dis+'>'+[0,1,2,3].map(function(n){return '<option'+(n===(x.tent||0)?' selected':'')+'>'+n+'</option>'}).join('')+'</select></div></div>'+
+    '<div class="two"><div>'+inp('stand','Tarif du stand (F)',x.stand,'number')+'</div><div>'+inp('reprise','Reprendre contact le',x.reprise,'date')+'</div></div>'+
+    inp('offres','Offres de visibilité',x.offres)+
+    '<label class="lbl">Notes</label><textarea class="in" id="p-notes"'+dis+'>'+esc(x.notes||'')+'</textarea>'+
+    (w?'<div class="savebar"><button class="btn-main" style="margin:0" id="pBtn" data-act="psave">'+(c?'Enregistrer':'Ajouter')+'</button></div>':'')+'</div>';
+  var sh=$('sheet');
+  sh.innerHTML='<div class="shead"><div class="grab"></div><div class="ctop"><div class="av '+(x.type==='Lycée'?'e':'a')+'" style="width:48px;height:48px;font-size:13px">'+esc(c||'+')+'</div>'+
+    '<div class="cinfo"><div class="nm" style="font-size:17px">'+esc(x.nom||'Nouveau partenaire')+'</div><div class="sub">'+esc([x.type,x.etape].filter(Boolean).join(' · '))+'</div></div></div>'+
+    (c&&x.tel?'<div class="qa"><a href="tel:'+esc(String(x.tel).replace(/[^0-9+]/g,''))+'">'+ICO.tel+'Appeler</a><a class="wa" href="'+waUrl(digits(x.tel).length===8?'226'+digits(x.tel):digits(x.tel))+'" target="_blank" rel="noopener">'+ICO.wa+'WhatsApp</a></div>':'')+'</div><div class="sbody">'+h+'</div>';
+  if(sh.className!=='sheet open'){ try{ history.pushState({ea:'sheet'},''); }catch(e){} }
+  $('ov').className='ov open'; sh.className='sheet open';
+}
+function partSave(){
+  var f={code:S.pcur}; ['type','nom','quartier','contact','tel','etape','rdv','visite','next','jpo','todo','moyen','tent','stand','reprise','offres','notes'].forEach(function(k){ f[k]=val('p-'+k); });
+  f.tent=Number(f.tent)||0; if(!f.nom||!f.nom.trim()){ toast('Le nom est obligatoire.'); return; }
+  $('pBtn').disabled=true;
+  run('savePartner',S.pin,f).then(function(r){ S.parts.list=r.list; store('ea_parts',JSON.stringify(S.parts)); closeSheet(); render(); toast((S.pcur?'Enregistré':'Ajouté : '+r.code)+' ✓'); })
+    .catch(function(e){ var b=$('pBtn'); if(b) b.disabled=false; err(e); });
+}
+function partAct(c,t){
+  var x=pfind(c), m=$('modal'); S.pact=[c,t];
+  var h='<h3>'+(t==='visite'?'✅ Visite de '+esc(x.nom):'🔁 Relance de '+esc(x.nom))+'</h3>';
+  if(t==='visite') h+='<label class="lbl">Résultat</label><select class="sel" id="pa-etape">'+(S.parts.etapes||[]).map(function(e){return '<option'+(e==='Visité – à relancer'?' selected':'')+'>'+esc(e)+'</option>'}).join('')+'</select>';
+  else h+='<div class="hint" style="margin:0">Tentative '+Math.min((x.tent||0)+1,3)+' sur 3'+((x.tent||0)>=2?' · après celle-ci, pense à classer « Pas intéressé » ou « À recontacter plus tard ».':'')+'</div><label class="lbl">Comment ?</label><select class="sel" id="pa-moyen">'+(S.parts.moyens||[]).map(function(e){return '<option'+(e===x.moyen?' selected':'')+'>'+esc(e)+'</option>'}).join('')+'</select>';
+  h+='<label class="lbl">Prochaine action le</label><input class="in" type="date" id="pa-next" value="'+addDays(today(),7)+'"><label class="lbl">Note (facultatif)</label><input class="in" id="pa-note" placeholder="'+(t==='visite'?'Ex. : proviseur rencontré, JPO en mars':'Ex. : rappeler après les examens')+'">'+
+    '<div class="cact"><button class="b ghost" data-act="closeall">Annuler</button><button class="b pri" id="paBtn" data-act="pasave">Enregistrer</button></div>';
+  m.innerHTML=h; $('ov').className='ov open'; m.className='modal open';
+  try{ if(!(history.state&&history.state.ea==='sheet')) history.pushState({ea:'sheet'},''); }catch(e){}
+}
+function partActSave(){ var c=S.pact[0], t=S.pact[1], d={next:val('pa-next'),note:val('pa-note')}; if(t==='visite') d.etape=val('pa-etape'); else d.moyen=val('pa-moyen');
+  $('paBtn').disabled=true;
+  run('partnerAction',S.pin,c,t,d).then(function(r){ S.parts.list=r.list; store('ea_parts',JSON.stringify(S.parts)); closeSheet(); render(); toast((t==='visite'?'Visite':'Relance')+' notée ✓'); })
+    .catch(function(e){ var b=$('paBtn'); if(b) b.disabled=false; err(e); }); }
+
+/* ---------- Objectifs du plan (au 31 janvier) ---------- */
+var PLAN={debut:'2026-11-16',fin:'2027-01-31',
+  fiches:{obj:600,pts:[['2026-11-22',40],['2026-11-29',100],['2026-12-06',170],['2027-01-24',550],['2027-01-31',600]]},
+  dossiers:{obj:15,txt:'10 à 15',pts:[['2026-12-27',4],['2027-01-17',9],['2027-01-31',15]]},
+  langues:{pts:[['2026-12-20',35],['2027-01-03',55]]}};
+function attendu(pts,t){ var prev=[PLAN.debut,0]; for(var i=0;i<pts.length;i++){ var p=pts[i]; if(t<=p[0]){ var a=new Date(prev[0]),b=new Date(p[0]),c=new Date(t); return Math.round(prev[1]+(p[1]-prev[1])*Math.max(0,(c-a)/(b-a||1))); } prev=p; } return prev[1]; }
+function objBox(list){
+  var t=today(), plan=list.filter(function(p){return (p.date||'')>=PLAN.debut});
+  var fiches=plan.length, dossiers=list.filter(function(p){return p.etape==='Dossier ouvert'}).length;
+  var ins=function(f){ return list.filter(function(p){return p.kind==='Formations'&&p.etape==='Inscrit et payé'&&(mainDetail(p)||'').indexOf(f)>=0}).length; };
+  var ang=ins('Anglais'), jap=ins('Japonais'), entre=plan.filter(function(p){return p.kind==='Études'&&p.rdv}).length;
+  var lyc=(S.parts&&S.parts.list||[]).filter(function(x){return x.type==='Lycée'&&x.visite}).length;
+  var row=function(lab,v,obj,att,txt){ var pct=Math.min(100,Math.round(v/obj*100)), late=att!=null&&v<att;
+    return '<div class="row" style="display:block"><div style="display:flex;justify-content:space-between;gap:10px"><span>'+lab+'</span><span class="v">'+v+' <span class="o">/ '+(txt||obj)+'</span></span></div>'+
+      '<div class="bar"><i style="width:'+pct+'%;background:'+(late?'var(--or)':'var(--green)')+'"></i></div>'+(att!=null?'<div class="hint" style="margin-top:4px">'+(late?'⚠️ À cette date, le plan prévoit '+att+'.':'✅ Dans les temps (plan : '+att+').')+'</div>':'')+'</div>'; };
+  return '<div class="box"><h3>🎯 Objectifs du plan au 31 janvier</h3><div class="hint" style="margin:0 0 4px">Depuis le 16 novembre · vert = dans les temps, orange = en retard sur le calendrier.</div>'+
+    row('📝 Fiches reçues',fiches,600,attendu(PLAN.fiches.pts,t))+
+    row('🎓 Dossiers ouverts',dossiers,15,attendu(PLAN.dossiers.pts,t),'10 à 15')+
+    row('🇬🇧 Inscrits en anglais',ang,40,null)+row('🇯🇵 Inscrits en japonais',jap,15,null)+
+    (t<='2027-01-03'?'<div class="hint" style="margin:-2px 0 8px">Langues : le plan prévoit '+attendu(PLAN.langues.pts,t)+' inscrits à cette date (35 au 20 déc.).</div>':'')+
+    row('📅 Entretiens programmés',entre,90,null)+row('🏫 Lycées visités',lyc,30,null)+'</div>';
+}
+function sourceBox(list){
+  var S2={}; list.forEach(function(p){ var src=p.part?'🏫 '+partName(p.part):((p.details.filter(function(d){return d[0]==='Source'})[0]||[])[1]||'Non renseignée');
+    src=src.replace(/ · [LP]\d+.*$/,''); var o=S2[src]||(S2[src]={n:0,g:0,m:0}); o.n++; if(/^(Dossier ouvert|Inscrit et payé|En cours|Terminé)$/.test(p.etape)) o.g++; o.m+=Number(p.montant)||0; });
+  var K=Object.keys(S2).sort(function(a,b){return S2[b].m-S2[a].m||S2[b].n-S2[a].n}), tot=K.reduce(function(a,k){return a+S2[k].m},0);
+  return '<div class="box"><h3>💰 Ce que rapporte chaque source</h3><div class="hint" style="margin:0 0 4px">Fiches, prospects gagnés et montant encaissé (tout le fichier).</div>'+
+    K.map(function(k){ var o=S2[k]; return '<div class="row"><span>'+esc(k)+'<div class="hint" style="margin:0">'+o.n+' fiche'+(o.n>1?'s':'')+' · '+o.g+' gagné'+(o.g>1?'s':'')+'</div></span><span class="v">'+fmtF(o.m)+'</span></div>'; }).join('')+
+    '<div class="row" style="font-weight:600"><span>Total encaissé</span><span class="v">'+fmtF(tot)+'</span></div></div>';
+}
+
 /* ---------- Toast ---------- */
 var tt=null;
 function toast(msg,btn,fn){ var t=$('toast'); $('toastTxt').innerHTML=msg; var b=$('toastBtn');
@@ -626,7 +831,7 @@ document.addEventListener('click',function(e){
   var a=el.getAttribute('data-act'), k=el.getAttribute('data-k');
   switch(a){
     case 'login': doLogin(); break;
-    case 'reload': load(); if(S.tab==='dash') loadDash(); break;
+    case 'reload': load(); if(S.tab==='dash') loadDash(); if(S.tab==='part') loadParts(); break;
     case 'logout': logout(); break;
     case 'tab': tab(el.getAttribute('data-t')); break;
     case 'kind': S.kind=k; render(); break;
@@ -651,12 +856,29 @@ document.addEventListener('click',function(e){
     case 'add': addP(); break;
     case 'per': S.period=el.getAttribute('data-p'); render(); break;
     case 'copyT': try{ navigator.clipboard.writeText(S.data.ntfy).then(function(){toast('Nom copié ✓')},function(){toast(esc(S.data.ntfy))}); }catch(x){ toast(esc(S.data.ntfy)); } break;
+    case 'rdvm': rdvModal(el.getAttribute('data-t')); break;
+    case 'rdvsave': rdvSave(); break;
+    case 'reprog': reprog(k); break;
+    case 'grp': grpStart(el.getAttribute('data-g')); break;
+    case 'grpsend': grpSend(); break;
+    case 'grpskip': S.grpSkip.push(S.grpK); grpNext(); break;
+    case 'pf': S.pf=el.getAttribute('data-f'); render(); break;
+    case 'pnew': partSheet(''); break;
+    case 'popen': partSheet(el.getAttribute('data-c')); break;
+    case 'psave': partSave(); break;
+    case 'pvis': partAct(el.getAttribute('data-c'),'visite'); break;
+    case 'prel': partAct(el.getAttribute('data-c'),'relance'); break;
+    case 'pasave': partActSave(); break;
+    case 'pcopy': try{ navigator.clipboard.writeText(el.getAttribute('data-l')).then(function(){toast('Lien copié ✓')}); }catch(x){ toast(esc(el.getAttribute('data-l'))); } break;
     case 'testN': run('testNotif',S.pin).then(function(){ toast('Notification envoyée ✓'); }).catch(err); break;
   }
 });
-document.addEventListener('input',function(e){ if(e.target.id==='q'){ S.q=e.target.value; var pos=e.target.selectionStart; render(); var q=$('q'); q.focus(); q.setSelectionRange(pos,pos); } });
+document.addEventListener('input',function(e){ if(e.target.id==='r-date'||e.target.id==='r-heure') rdvMsg();
+  if(e.target.id==='pq'){ S.pq=e.target.value; var ps=e.target.selectionStart; render(); var pq=$('pq'); pq.focus(); pq.setSelectionRange(ps,ps); }
+  if(e.target.id==='q'){ S.q=e.target.value; var pos=e.target.selectionStart; render(); var q=$('q'); q.focus(); q.setSelectionRange(pos,pos); } });
 document.addEventListener('blur',function(e){ if(e.target.id==='n-wa'){ var w=numCheck(e.target.value); if(e.target.value && w) toast('⚠️ Numéro : '+esc(w)+'. Vérifie avec la personne.'); } },true);
-document.addEventListener('change',function(e){ if(e.target.id==='fet'){ S.etape=e.target.value; render(); } });
+document.addEventListener('change',function(e){ if(e.target.id==='fet'){ S.etape=e.target.value; render(); }
+  if(e.target.id==='n-src'){ $('n-partw').className=/lycée|partenaire/i.test(e.target.value)?'':'hide'; if(!S.parts) loadParts(); } });
 $('pin').addEventListener('keyup',function(e){ if(e.key==='Enter') doLogin(); });
 
 /* Touche retour */
