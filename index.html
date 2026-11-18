@@ -179,6 +179,38 @@ nav .dot b{position:absolute;top:-4px;right:-10px;background:var(--or);color:#ff
 .doc .k4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}.doc .k4 div{background:var(--teal-50);border-radius:10px;padding:10px;text-align:center}
 .doc .k4 b{display:block;font-family:Poppins,Inter,sans-serif;font-size:20px;color:var(--teal-d)}.doc .foot{margin-top:22px;font-size:11px;color:var(--mut);border-top:1px solid #E8EFF0;padding-top:8px}
 @media print{body>*:not(#print){display:none!important}#print{position:static;padding:0}.pbar{display:none}@page{margin:14mm}}
+/* Retour visuel au toucher : léger rebond */
+.b,.btn-main,.chip,.opt,.more,.qa a,.qa button,.tabs button,.seg button,nav button,.ibtn,.tpl button,.lnk{transition:transform .12s ease}
+.b:active,.btn-main:active,.chip:active,.opt:active,.more:active,.qa a:active,.qa button:active,.tabs button:active,.seg button:active,nav button:active,.ibtn:active,.tpl button:active{transform:scale(.95)}
+.tap{animation:tap .32s ease}
+@keyframes tap{0%{transform:scale(1)}35%{transform:scale(.93)}70%{transform:scale(1.04)}100%{transform:scale(1)}}
+/* Résultats */
+.rhero{background:linear-gradient(135deg,#0C7C90 0%,#12909F 60%,#3FA9B5 100%);color:#fff;border-radius:22px;padding:18px;margin-bottom:14px;box-shadow:0 10px 30px rgba(12,124,144,.18)}
+.rhero .m{font-family:Poppins,Inter,sans-serif;font-size:13px;opacity:.85}
+.rhero .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.rhero .stats div{background:rgba(255,255,255,.14);border-radius:14px;padding:10px 6px;text-align:center}
+.rhero .stats b{display:block;font-family:Poppins,Inter,sans-serif;font-size:20px}
+.rhero .stats span{font-size:11.5px;opacity:.9}
+.rhero .lnk{display:flex;justify-content:space-between;align-items:center;margin-top:12px;background:#fff;color:var(--teal-d);border-radius:14px;padding:11px 14px;font-weight:600;font-size:14px;border:0;width:100%}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.tile{background:#F7FAFA;border-radius:16px;padding:12px;display:flex;gap:10px;align-items:center}
+.tile svg{flex:none}
+.tile .tl{font-size:12.5px;color:var(--mut);line-height:1.25}
+.tile .tv{font-family:Poppins,Inter,sans-serif;font-weight:600;font-size:17px}
+.tile .tv small{font-size:12px;color:var(--mut);font-weight:500}
+.dot2{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:4px;vertical-align:1px}
+.sline{display:flex;justify-content:space-between;font-size:13.5px;margin-top:12px}
+.sbar{height:6px;border-radius:6px;background:#EDF3F4;margin-top:5px;overflow:hidden}
+.sbar i{display:block;height:100%;border-radius:6px;background:var(--teal)}
+.prow{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #F0F4F5}
+.prow:last-child{border-bottom:0}
+.prow .av{width:36px;height:36px;border-radius:12px;font-size:13px}
+details.fold{background:#fff;border-radius:18px;margin-bottom:12px;box-shadow:0 1px 2px rgba(0,0,0,.03),0 4px 14px rgba(12,124,144,.05)}
+details.fold summary{list-style:none;padding:14px 16px;font-weight:600;font-family:Poppins,Inter,sans-serif;font-size:14.5px;display:flex;justify-content:space-between;cursor:pointer}
+details.fold summary::-webkit-details-marker{display:none}
+details.fold summary:after{content:"›";color:var(--mut);transform:rotate(90deg);transition:transform .2s}
+details.fold[open] summary:after{transform:rotate(270deg)}
+details.fold .in2{padding:0 16px 14px}
 </style>
 </head>
 <body>
@@ -246,7 +278,8 @@ var TPL=[
  ['🇯🇵 Japonais','Bonjour {p}, la formation en japonais démarre le mardi 12 janvier 2027 : 3 séances de 2h par semaine, 50 000 F par mois. Les frais d\'inscription (10 000 F) sont offerts avant le 31 décembre. Souhaitez-vous réserver votre place ?'],
  ['📅 Proposer un RDV','Bonjour {p}, je vous propose un rendez-vous à notre agence pour étudier votre projet ensemble. Quel jour et quelle heure vous conviennent cette semaine ?'],
  ['📄 Documents','Bonjour {p}, pour avancer sur votre dossier, merci de nous envoyer : copie du passeport (ou CNIB), derniers bulletins et relevés de notes, diplômes obtenus. Vous pouvez les envoyer ici en photo ou en PDF.'],
- ['📍 Contacts','Educ\'Assure — WhatsApp : +226 68 53 53 94 · Appels : 51 63 44 44 / 54 44 00 44 · E-mail : assureeduc@gmail.com. N\'hésitez pas à passer nous voir !'],
+ ['📍 Nous trouver','Bonjour {p}, nous sommes à Kalgondé, derrière la Brigade des Sapeurs-Pompiers. Nous pouvons également vous envoyer la localisation.'],
+ ['☎️ Contacts','Educ\'Assure — WhatsApp : +226 68 53 53 94 · Appels : 51 63 44 44 / 54 44 00 44 · E-mail : assureeduc@gmail.com. N\'hésitez pas à passer nous voir !'],
  ['🙏 Merci','Bonjour {p}, merci pour votre confiance ! Nous restons disponibles pour toute question.']
 ];
 
@@ -284,7 +317,7 @@ var JOURS=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'], M
 function quand(iso){ if(!iso) return ''; var a=new Date(iso+'T12:00:00Z'), b=new Date(today()+'T12:00:00Z'), n=Math.round((a-b)/864e5);
   var j=JOURS[a.getUTCDay()]+' '+a.getUTCDate()+(a.getUTCDate()===1?'er':'')+' '+MOISL[a.getUTCMonth()];
   return n===0?'aujourd\'hui':n===1?'demain':n===-1?'hier':(n>1&&n<7)?'ce '+j:'le '+j; }
-function hh(h){ return h?' à '+h.replace(':','h').replace(/h00$/,'h'):''; }
+function hh(h){ return h?' à '+h.replace(':','h'):''; }
 function rdvNom(p){ return p.kind==='Études'?'entretien d\'orientation':'test de niveau'+(mainDetail(p)?' en '+mainDetail(p).toLowerCase():''); }
 function partName(c){ var x=(S.parts&&S.parts.list||[]).filter(function(q){return q.code===c})[0]; return x?x.nom:c; }
 function key(p){ return p.kind+'|'+p.row; }
@@ -353,7 +386,7 @@ function render(){
   if(S.tab==='today') return renderToday(list,todo);
   if(S.tab==='all') return renderAll(list);
   if(S.tab==='new') return renderNew();
-  if(S.tab==='dash') return renderDash(list,todo);
+  if(S.tab==='dash') return renderDash(list);
   if(S.tab==='part') return renderParts(list);
 }
 function renderToday(list,todo){
@@ -621,39 +654,60 @@ function loadDash(){
   run('getTeam',S.pin).then(function(t){ S.team=t; if(S.tab==='dash') render(); }).catch(function(){});
 }
 function num(v){ return parseFloat(String(v).replace(/[\s  ]/g,'').replace(',','.'))||0; }
-function renderDash(list,todo){
+function ring(v,obj,col){ var pct=obj?Math.min(1,v/obj):0, r=19, c=2*Math.PI*r;
+  return '<svg width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="'+r+'" fill="none" stroke="#E4EEF0" stroke-width="5"/>'+(pct>0?'<circle cx="24" cy="24" r="'+r+'" fill="none" stroke="'+col+'" stroke-width="5" stroke-linecap="round" stroke-dasharray="'+(c*pct).toFixed(1)+' '+c.toFixed(1)+'" transform="rotate(-90 24 24)"/>':'')+'<text x="24" y="28" text-anchor="middle" font-size="11" font-weight="600" fill="#18343B" font-family="Inter">'+Math.round(pct*100)+'%</text></svg>'; }
+function renderDash(list){
   setChips([]);
-  var c=function(id){ return todo.filter(function(p){return groupOf(p)===id}).length; };
-  var ym=today().slice(0,7), pm=addDays(ym+'-01',-1).slice(0,7), mn=function(m){ var p=m.split('-'); return MOISL[Number(p[1])-1]+' '+p[0]; };
-  var h='<div class="box"><h3>📄 Bilan pour la Direction</h3><div class="hint" style="margin:0 0 10px">Un PDF aux couleurs d\'Educ\'Assure, prêt à envoyer à Mme KEITA.</div><div class="cact" style="margin:0"><button class="b soft" data-act="bilan" data-m="'+pm+'">'+mn(pm)+'</button><button class="b pri" data-act="bilan" data-m="'+ym+'">'+mn(ym)+' (en cours)</button></div></div>'+objBox(list)+sourceBox(list)+'<div class="box"><h3>Aujourd\'hui</h3><div class="kpis"><div class="kpi"><b>'+(c('msg')+c('rel'))+'</b><span>messages</span></div><div class="kpi"><b>'+(c('rdv')+c('cb'))+'</b><span>RDV et appels</span></div><div class="kpi"><b>'+c('maj')+'</b><span>à mettre à jour</span></div></div></div>';
+  var t=today(), ym=t.slice(0,7), pm=addDays(ym+'-01',-1).slice(0,7), mn=function(m){ var p=m.split('-'); return MOISL[Number(p[1])-1]; };
+  var mois=list.filter(function(p){return (p.date||'').slice(0,7)===ym});
+  var rdvM=list.filter(function(p){return (p.rdv||'').slice(0,7)===ym}).length;
+  var enc=list.reduce(function(a,p){return a+(Number(p.montant)||0)},0);
+  var h='<div class="rhero"><div class="m">'+mn(ym).charAt(0).toUpperCase()+mn(ym).slice(1)+' '+ym.slice(0,4)+'</div>'+
+    '<div class="stats"><div><b>'+mois.length+'</b><span>fiches</span></div><div><b>'+rdvM+'</b><span>rendez-vous</span></div><div><b>'+(enc>=1e6?(enc/1e6).toFixed(1).replace('.',',')+' M':enc>=1e3?Math.round(enc/1e3)+' k':enc)+'</b><span>FCFA encaissés</span></div></div>'+
+    '<button class="lnk" data-act="bilan" data-m="'+ym+'"><span>📄 Bilan du mois pour la Direction</span><span>›</span></button></div>';
+  // Objectifs
+  var plan=list.filter(function(p){return (p.date||'')>=PLAN.debut}), doss=list.filter(function(p){return p.etape==='Dossier ouvert'}).length;
+  var ins=function(f){ return list.filter(function(p){return p.kind==='Formations'&&p.etape==='Inscrit et payé'&&(mainDetail(p)||'').indexOf(f)>=0}).length; };
+  var tile=function(lab,v,obj,txt,att){ var late=att!=null&&v<att, col=late?'#EE8434':'#1E9E5A';
+    return '<div class="tile">'+ring(v,obj,col)+'<div><div class="tv">'+v+' <small>/ '+(txt||obj)+'</small></div><div class="tl">'+lab+'</div>'+
+      (att!=null?'<div class="tl" style="margin-top:2px"><span class="dot2" style="background:'+col+'"></span>'+(late?'plan : '+att:'dans les temps')+'</div>':'')+'</div></div>'; };
+  var lyc=(S.parts&&S.parts.list||[]).filter(function(x){return x.type==='Lycée'&&x.visite}).length;
+  var ent=plan.filter(function(p){return p.kind==='Études'&&p.rdv}).length;
+  var sl=function(lab,v,obj){ return '<div class="sline"><span>'+lab+'</span><span><b>'+v+'</b> <span style="color:var(--mut)">/ '+obj+'</span></span></div><div class="sbar"><i style="width:'+Math.min(100,Math.round(v/obj*100))+'%"></i></div>'; };
+  h+='<div class="box"><h3>🎯 Objectifs au 31 janvier</h3><div class="tiles">'+
+    tile('fiches reçues',plan.length,600,null,attendu(PLAN.fiches.pts,t))+tile('dossiers ouverts',doss,15,'10-15',attendu(PLAN.dossiers.pts,t))+
+    tile('inscrits anglais',ins('Anglais'),40)+tile('inscrits japonais',ins('Japonais'),15)+'</div>'+
+    sl('📅 Entretiens programmés',ent,90)+sl('🏫 Lycées visités',lyc,30)+'</div>';
+  // Sources
+  var SR={}; list.forEach(function(p){ var k=p.part?'🏫 '+partName(p.part):((p.details.filter(function(d){return d[0]==='Source'})[0]||[])[1]||'Non renseignée'); k=k.replace(/ · [LP]\d+.*$/,'').replace('Publicité Facebook ou Instagram','Publicité Facebook / Insta');
+    var o=SR[k]||(SR[k]={n:0,m:0}); o.n++; o.m+=Number(p.montant)||0; });
+  var K=Object.keys(SR).sort(function(a,c){return SR[c].n-SR[a].n}), mx=K.length?SR[K[0]].n:1;
+  h+='<div class="box"><h3>📣 D\'où viennent les prospects</h3>'+K.slice(0,S.allSrc?50:5).map(function(k){ var o=SR[k];
+      return '<div class="sline"><span>'+esc(k)+'</span><span><b>'+o.n+'</b>'+(o.m?' <span style="color:var(--mut)">· '+fmtF(o.m)+'</span>':'')+'</span></div><div class="sbar"><i style="width:'+Math.round(o.n/mx*100)+'%;background:var(--or)"></i></div>'; }).join('')+
+    (K.length>5?'<button class="more" style="margin-top:12px" data-act="allsrc">'+(S.allSrc?'Voir moins':'Voir les '+K.length+' sources')+'</button>':'')+'</div>';
   // Équipe
   var T=S.team;
-  h+='<div class="box"><div style="display:flex;justify-content:space-between;align-items:center"><h3>L\'équipe</h3><div class="seg" style="width:170px;padding:3px"><button class="'+(S.period==='sem'?'on':'')+'" data-act="per" data-p="sem" style="padding:6px">7 jours</button><button class="'+(S.period==='mois'?'on':'')+'" data-act="per" data-p="mois" style="padding:6px">Ce mois</button></div></div>';
+  h+='<div class="box"><div style="display:flex;justify-content:space-between;align-items:center"><h3>👥 L\'équipe</h3><div class="seg" style="width:160px;padding:3px"><button class="'+(S.period==='sem'?'on':'')+'" data-act="per" data-p="sem" style="padding:6px">7 jours</button><button class="'+(S.period==='mois'?'on':'')+'" data-act="per" data-p="mois" style="padding:6px">Ce mois</button></div></div>';
   if(!T) h+='<div class="hint">Chargement…</div>';
   else if(!Object.keys(T).length) h+='<div class="hint">Les chiffres apparaîtront dès les premiers envois faits depuis l\'appli.</div>';
-  else h+='<table class="team"><tr><th></th><th>Messages</th><th>Appels</th><th>RDV</th><th>Gagnés</th></tr>'+Object.keys(T).map(function(n){ var s=T[n][S.period]||{msg:0,appels:0,rdv:0,gagnes:0,montant:0};
-      return '<tr><td><b>'+esc(n)+'</b>'+(s.montant?'<div class="hint" style="margin:0">'+fmtF(s.montant)+'</div>':'')+'</td><td>'+s.msg+'</td><td>'+s.appels+'</td><td>'+s.rdv+'</td><td><b>'+s.gagnes+'</b></td></tr>'; }).join('')+'</table>';
+  else h+=Object.keys(T).map(function(n,i){ var s=T[n][S.period]||{msg:0,appels:0,rdv:0,gagnes:0,montant:0};
+      return '<div class="prow"><div class="av '+['e','f','a'][i%3]+'">'+esc(initials(n))+'</div><div style="flex:1;min-width:0"><div style="font-weight:600">'+esc(n)+'</div><div class="sub">'+s.msg+' message'+(s.msg>1?'s':'')+' · '+s.appels+' appel'+(s.appels>1?'s':'')+' · '+s.rdv+' RDV</div></div>'+
+        (s.gagnes?'<span class="flag" style="background:var(--green-50);color:var(--green)">'+s.gagnes+' gagné'+(s.gagnes>1?'s':'')+'</span>':'')+'</div>'; }).join('');
   h+='</div>';
-  // Tableau de bord du Google Sheets
+  // Détails (repliés)
   var d=S.dash;
   if(d){
-    var L=d.left, dd=function(v){ return /^\d{4}-\d{2}-\d{2}$/.test(v)?fd(v):v; };
-    var block=function(title,from,to){ var s='<div class="box"><h3>'+title+'</h3>';
-      for(var r=from;r<=to;r++){ if(!L[r]||!L[r][0]) continue; var obj=L[r][2]&&L[r][2]!=='—'?L[r][2]:'', pct=obj&&num(obj)?Math.min(100,Math.round(num(L[r][1])/num(obj)*100)):-1;
-        s+='<div class="row" style="display:block"><div style="display:flex;justify-content:space-between;gap:10px"><span>'+esc(L[r][0])+'</span><span class="v">'+esc(L[r][1])+(obj?' <span class="o">/ '+esc(obj)+'</span>':'')+'</span></div>'+(pct>=0?'<div class="bar"><i style="width:'+pct+'%"></i></div>':'')+'</div>'; }
+    var L=d.left, block=function(title,from,to){ var s='<div style="margin-bottom:12px"><div style="font-weight:600;margin:6px 0 2px">'+title+'</div>';
+      for(var r=from;r<=to;r++){ if(!L[r]||!L[r][0]) continue; s+='<div class="row"><span>'+esc(L[r][0])+'</span><span class="v">'+esc(L[r][1])+(L[r][2]&&L[r][2]!=='—'?' <span class="o">/ '+esc(L[r][2])+'</span>':'')+'</span></div>'; }
       return s+'</div>'; };
-    h+='<div class="grp-hint" style="margin:18px 2px 10px">Objectifs du '+esc(dd(d.period[0]))+' au '+esc(dd(d.period[1]))+'</div>';
-    h+=block('🎓 Études à l\'étranger',10,17)+block('🗣️ Formations',21,27)+block('📄 Autres demandes',31,34)+block('🏫 Lycées',38,42);
-    var R=d.right, s='<div class="box"><h3>📣 D\'où viennent les fiches</h3>';
-    for(var i=2;i<R.length;i++){ if(!R[i][0]) continue; s+='<div class="row"'+(R[i][0]==='Total'?' style="font-weight:600"':'')+'><span>'+esc(R[i][0])+'</span><span class="v">'+esc(R[i][1])+' <span class="o">· '+esc(R[i][2])+' F</span></span></div>'; }
-    h+=s+'</div>';
+    h+='<details class="fold"><summary>📊 Détails par offre</summary><div class="in2">'+block('🎓 Études à l\'étranger',10,17)+block('🗣️ Formations',21,27)+block('📄 Autres demandes',31,34)+block('🏫 Lycées',38,42)+
+      '<div class="cact"><button class="b soft" data-act="bilan" data-m="'+pm+'">📄 Bilan de '+mn(pm)+'</button></div></div></details>';
   }
   var Tp=S.data.ntfy;
-  h+='<div class="box"><h3>🔔 Notifications sur ce téléphone</h3><div class="hint" style="margin:0 0 10px;color:var(--ink);font-size:13.5px">1. Installe l\'appli gratuite <b>ntfy</b>.<br>2. Dans ntfy, touche <b>+</b> et colle ce nom :</div>'+
+  h+='<details class="fold"><summary>⚙️ Notifications et compte</summary><div class="in2"><div class="hint" style="margin:0 0 10px;color:var(--ink);font-size:13.5px">Installe l\'appli gratuite <b>ntfy</b>, touche <b>+</b> et colle ce nom :</div>'+
     '<div class="msg" style="text-align:center;font-weight:600;user-select:all">'+esc(Tp)+'</div>'+
-    '<div class="cact"><button class="b soft" data-act="copyT">Copier le nom</button><button class="b soft" data-act="testN">Tester</button></div>'+
-    '<div class="hint">Nouvelles fiches, programme à 8h, rappel à 16h, RDV 1h avant, prospects oubliés le lundi.</div></div>'+
-    '<button class="more" data-act="logout">Se déconnecter</button>';
+    '<div class="cact"><button class="b soft" data-act="copyT">Copier</button><button class="b soft" data-act="testN">Tester</button></div>'+
+    '<button class="more" style="margin-top:14px" data-act="logout">Se déconnecter</button></div></details>';
   $('main').innerHTML=h;
 }
 
@@ -758,15 +812,14 @@ function partSheet(c){
     var kit='Bonjour'+(x.contact?' '+String(x.contact).split(',')[0]:'')+', merci pour notre partenariat avec Educ\'Assure 🤝\nVoici vos liens personnels à partager à vos élèves, membres ou contacts. Chaque fiche remplie avec ces liens vous est attribuée :\n\n'+lines+'\n\nLa fiche prend 1 minute, puis nous recontactons la personne sur WhatsApp. Merci !';
     var share=(S.plink==='Formations'?'Bonjour 👋 Vous voulez apprendre l\'anglais ou le japonais ? Inscrivez-vous en 1 minute ici : ':S.plink==='Autres'?'Bonjour 👋 Pour une traduction, une assistance visa ou un autre service, remplissez cette fiche (1 minute) : ':'Bonjour 👋 Vous souhaitez étudier à l\'étranger ? Remplissez cette fiche (1 minute) et Educ\'Assure vous recontacte : ')+link;
     var telP=x.tel?(digits(x.tel).length===8?'226'+digits(x.tel):digits(x.tel)):'';
-    h+='<div class="box"><h3>📊 Ce qu\'il nous apporte</h3><div class="kpis"><div class="kpi"><b>'+st.fiches+'</b><span>fiches</span></div><div class="kpi"><b>'+st.gagnes+'</b><span>dossiers / inscrits</span></div><div class="kpi"><b style="font-size:16px">'+(st.montant?fmtF(st.montant):'0 F')+'</b><span>encaissé</span></div></div>'+
+    h+='<div class="box"><h3>📊 Ce qu\'il nous apporte</h3><div class="kpis" style="margin-top:8px"><div class="kpi"><b>'+st.fiches+'</b><span>fiches</span></div><div class="kpi"><b>'+st.gagnes+'</b><span>dossiers / inscrits</span></div><div class="kpi"><b style="font-size:16px">'+(st.montant?fmtF(st.montant):'0 F')+'</b><span>encaissé</span></div></div>'+
       (st.list.length?'<div style="margin-top:10px">'+st.list.slice(0,20).map(function(p){return '<div class="row" data-act="open" data-k="'+key(p)+'"><span>'+ICON[p.kind]+' '+esc(p.nom)+'</span><span class="o">'+esc(p.etape||'Nouveau')+'</span></div>'}).join('')+'</div>':'')+'</div>'+
-      '<div class="box"><h3>🔗 Ses liens et QR codes</h3><div class="hint" style="margin:0 0 10px">À donner au partenaire pour qu\'il les partage à ses élèves ou contacts. Chaque fiche remplie avec ses liens lui est comptée automatiquement.</div>'+
+      '<div class="box"><h3>🔗 Ses liens</h3><div class="hint" style="margin:0 0 10px">Les fiches remplies avec ses liens lui sont comptées.</div>'+
       '<a class="b wa" style="margin-bottom:12px" href="'+(telP?waUrl(telP,kit):'https://wa.me/?text='+encodeURIComponent(kit))+'" target="_blank" rel="noopener">'+ICO.wa+'Envoyer ses liens au partenaire</a>'+
       '<div class="seg" style="margin-bottom:10px">'+OFF.map(function(o){return '<button class="'+(S.plink===o[0]?'on':'')+'" data-act="plink" data-o="'+o[0]+'"'+(LI[o[0]]?'':' style="opacity:.45"')+'>'+o[1]+'</button>'}).join('')+'</div>'+
       (LI[S.plink]?'<div class="msg" style="font-size:13px;word-break:break-all;user-select:all">'+esc(link)+'</div>'+
-        '<div style="text-align:center;margin-top:10px"><img src="'+qr+'" alt="QR code" style="width:180px;height:180px;border-radius:12px"></div>'+
-        '<div class="cact"><button class="b soft" data-act="pcopy" data-l="'+esc(link)+'">Copier</button><a class="b soft" href="'+qr+'" target="_blank" rel="noopener">QR à imprimer</a><a class="b soft" href="https://wa.me/?text='+encodeURIComponent(share)+'" target="_blank" rel="noopener">'+ICO.wa+'Partager</a></div>':'')+
-      (OFF.some(function(o){return !LI[o[0]]})?'<div class="hint">'+OFF.filter(function(o){return !LI[o[0]]}).map(function(o){return o[1].slice(3)}).join(' et ')+' : lien disponible dès que le champ caché « lycee » est ajouté à la fiche Tally.</div>':'')+'</div>';
+        '<div class="cact"><button class="b soft" data-act="pcopy" data-l="'+esc(link)+'">Copier</button><a class="b soft" href="'+qr+'" target="_blank" rel="noopener">QR code</a><a class="b soft" href="https://wa.me/?text='+encodeURIComponent(share)+'" target="_blank" rel="noopener">'+ICO.wa+'Partager</a></div>':'')+
+      '</div>';
   }
   h+='<div class="box"><h3>'+(c?'Informations':'Nouveau lycée ou partenaire')+'</h3>'+
     '<label class="lbl" style="margin-top:6px">Type</label><select class="sel" id="p-type"'+dis+'>'+o(P.types||['Lycée'],x.type).replace('<option value=""></option>','')+'</select>'+
@@ -776,9 +829,10 @@ function partSheet(c){
     '<div class="two"><div>'+inp('rdv','Rendez-vous le',x.rdv,'date')+'</div><div>'+inp('visite','Visité le',x.visite,'date')+'</div></div>'+
     '<div class="two"><div>'+inp('next','Prochaine action le',x.next,'date')+'</div><div>'+inp('jpo','Portes ouvertes le',x.jpo,'date')+'</div></div>'+
     inp('todo','À faire',x.todo)+
+    '<details style="margin-top:12px"><summary style="font-size:13px;font-weight:600;color:var(--teal);cursor:pointer">Plus d\'informations</summary>'+
     '<div class="two"><div><label class="lbl">Moyen de relance</label><select class="sel" id="p-moyen"'+dis+'>'+o(P.moyens||[],x.moyen)+'</select></div><div><label class="lbl">Tentatives</label><select class="sel" id="p-tent"'+dis+'>'+[0,1,2,3].map(function(n){return '<option'+(n===(x.tent||0)?' selected':'')+'>'+n+'</option>'}).join('')+'</select></div></div>'+
     '<div class="two"><div>'+inp('stand','Tarif du stand (F)',x.stand,'number')+'</div><div>'+inp('reprise','Reprendre contact le',x.reprise,'date')+'</div></div>'+
-    inp('offres','Offres de visibilité',x.offres)+
+    inp('offres','Offres de visibilité',x.offres)+'</details>'+
     '<label class="lbl">Notes</label><textarea class="in" id="p-notes"'+dis+'>'+esc(x.notes||'')+'</textarea>'+
     (w?'<div class="savebar"><button class="btn-main" style="margin:0" id="pBtn" data-act="psave">'+(c?'Enregistrer':'Ajouter')+'</button></div>':'')+'</div>';
   var sh=$('sheet');
@@ -816,30 +870,6 @@ var PLAN={debut:'2026-11-16',fin:'2027-01-31',
   dossiers:{obj:15,txt:'10 à 15',pts:[['2026-12-27',4],['2027-01-17',9],['2027-01-31',15]]},
   langues:{pts:[['2026-12-20',35],['2027-01-03',55]]}};
 function attendu(pts,t){ var prev=[PLAN.debut,0]; for(var i=0;i<pts.length;i++){ var p=pts[i]; if(t<=p[0]){ var a=new Date(prev[0]),b=new Date(p[0]),c=new Date(t); return Math.round(prev[1]+(p[1]-prev[1])*Math.max(0,(c-a)/(b-a||1))); } prev=p; } return prev[1]; }
-function objBox(list){
-  var t=today(), plan=list.filter(function(p){return (p.date||'')>=PLAN.debut});
-  var fiches=plan.length, dossiers=list.filter(function(p){return p.etape==='Dossier ouvert'}).length;
-  var ins=function(f){ return list.filter(function(p){return p.kind==='Formations'&&p.etape==='Inscrit et payé'&&(mainDetail(p)||'').indexOf(f)>=0}).length; };
-  var ang=ins('Anglais'), jap=ins('Japonais'), entre=plan.filter(function(p){return p.kind==='Études'&&p.rdv}).length;
-  var lyc=(S.parts&&S.parts.list||[]).filter(function(x){return x.type==='Lycée'&&x.visite}).length;
-  var row=function(lab,v,obj,att,txt){ var pct=Math.min(100,Math.round(v/obj*100)), late=att!=null&&v<att;
-    return '<div class="row" style="display:block"><div style="display:flex;justify-content:space-between;gap:10px"><span>'+lab+'</span><span class="v">'+v+' <span class="o">/ '+(txt||obj)+'</span></span></div>'+
-      '<div class="bar"><i style="width:'+pct+'%;background:'+(late?'var(--or)':'var(--green)')+'"></i></div>'+(att!=null?'<div class="hint" style="margin-top:4px">'+(late?'⚠️ À cette date, le plan prévoit '+att+'.':'✅ Dans les temps (plan : '+att+').')+'</div>':'')+'</div>'; };
-  return '<div class="box"><h3>🎯 Objectifs du plan au 31 janvier</h3><div class="hint" style="margin:0 0 4px">Depuis le 16 novembre · vert = dans les temps, orange = en retard sur le calendrier.</div>'+
-    row('📝 Fiches reçues',fiches,600,attendu(PLAN.fiches.pts,t))+
-    row('🎓 Dossiers ouverts',dossiers,15,attendu(PLAN.dossiers.pts,t),'10 à 15')+
-    row('🇬🇧 Inscrits en anglais',ang,40,null)+row('🇯🇵 Inscrits en japonais',jap,15,null)+
-    (t<='2027-01-03'?'<div class="hint" style="margin:-2px 0 8px">Langues : le plan prévoit '+attendu(PLAN.langues.pts,t)+' inscrits à cette date (35 au 20 déc.).</div>':'')+
-    row('📅 Entretiens programmés',entre,90,null)+row('🏫 Lycées visités',lyc,30,null)+'</div>';
-}
-function sourceBox(list){
-  var S2={}; list.forEach(function(p){ var src=p.part?'🏫 '+partName(p.part):((p.details.filter(function(d){return d[0]==='Source'})[0]||[])[1]||'Non renseignée');
-    src=src.replace(/ · [LP]\d+.*$/,''); var o=S2[src]||(S2[src]={n:0,g:0,m:0}); o.n++; if(/^(Dossier ouvert|Inscrit et payé|En cours|Terminé)$/.test(p.etape)) o.g++; o.m+=Number(p.montant)||0; });
-  var K=Object.keys(S2).sort(function(a,b){return S2[b].m-S2[a].m||S2[b].n-S2[a].n}), tot=K.reduce(function(a,k){return a+S2[k].m},0);
-  return '<div class="box"><h3>💰 Ce que rapporte chaque source</h3><div class="hint" style="margin:0 0 4px">Fiches, prospects gagnés et montant encaissé (tout le fichier).</div>'+
-    K.map(function(k){ var o=S2[k]; return '<div class="row"><span>'+esc(k)+'<div class="hint" style="margin:0">'+o.n+' fiche'+(o.n>1?'s':'')+' · '+o.g+' gagné'+(o.g>1?'s':'')+'</div></span><span class="v">'+fmtF(o.m)+'</span></div>'; }).join('')+
-    '<div class="row" style="font-weight:600"><span>Total encaissé</span><span class="v">'+fmtF(tot)+'</span></div></div>';
-}
 
 
 /* ---------- Bilan du mois (PDF) ---------- */
@@ -880,6 +910,7 @@ function toast(msg,btn,fn){ var t=$('toast'); $('toastTxt').innerHTML=msg; var b
 
 /* ---------- Événements ---------- */
 document.addEventListener('click',function(e){
+  var bt=e.target.closest('button,.b,.qa a,.lnk'); if(bt){ bt.classList.remove('tap'); void bt.offsetWidth; bt.classList.add('tap'); setTimeout(function(){ bt.classList.remove('tap'); },340); }
   var el=e.target.closest('[data-act]'); if(!el) return;
   var a=el.getAttribute('data-act'), k=el.getAttribute('data-k');
   switch(a){
@@ -923,6 +954,7 @@ document.addEventListener('click',function(e){
     case 'prel': partAct(el.getAttribute('data-c'),'relance'); break;
     case 'pasave': partActSave(); break;
     case 'plink': S.plink=el.getAttribute('data-o'); var sb=document.querySelector('#sheet .sbody'), y=sb?sb.scrollTop:0; partSheet(S.pcur); var sb2=document.querySelector('#sheet .sbody'); if(sb2) sb2.scrollTop=y; break;
+    case 'allsrc': S.allSrc=!S.allSrc; render(); break;
     case 'bilan': bilan(el.getAttribute('data-m')); break;
     case 'bprint': window.print(); break;
     case 'bclose': $('print').className='hide'; try{ if(history.state&&history.state.ea==='print') history.back(); }catch(x){} break;
