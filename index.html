@@ -168,6 +168,17 @@ nav .dot b{position:absolute;top:-4px;right:-10px;background:var(--or);color:#ff
 .toast button{background:none;border:0;color:#FFC796;font-weight:600;font-size:14px;white-space:nowrap}
 .loader{position:fixed;top:0;left:0;right:0;height:2px;z-index:90;background:var(--teal);transform-origin:left;animation:ld 1s infinite;display:none}
 @keyframes ld{0%{transform:scaleX(0)}100%{transform:scaleX(1);opacity:.3}}
+#print{position:fixed;inset:0;z-index:95;background:#fff;overflow:auto;padding:16px}
+.pbar{display:flex;gap:8px;max-width:760px;margin:0 auto 14px}
+.doc{max-width:760px;margin:0 auto;color:#18343B;font-size:13px}
+.doc .top{display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid var(--teal);padding-bottom:10px}
+.doc .top img{height:44px}.doc h1{font-family:Poppins,Inter,sans-serif;font-size:20px;color:var(--teal-d)}
+.doc h2{font-family:Poppins,Inter,sans-serif;font-size:14px;color:var(--teal);margin:18px 0 6px;border-left:4px solid var(--or);padding-left:8px}
+.doc table{width:100%;border-collapse:collapse}.doc th{background:var(--teal-50);color:var(--teal-d);font-weight:600;text-align:left;padding:6px 8px;font-size:12px}
+.doc td{padding:6px 8px;border-bottom:1px solid #E8EFF0}.doc td.n,.doc th.n{text-align:right}
+.doc .k4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}.doc .k4 div{background:var(--teal-50);border-radius:10px;padding:10px;text-align:center}
+.doc .k4 b{display:block;font-family:Poppins,Inter,sans-serif;font-size:20px;color:var(--teal-d)}.doc .foot{margin-top:22px;font-size:11px;color:var(--mut);border-top:1px solid #E8EFF0;padding-top:8px}
+@media print{body>*:not(#print){display:none!important}#print{position:static;padding:0}.pbar{display:none}@page{margin:14mm}}
 </style>
 </head>
 <body>
@@ -206,6 +217,7 @@ nav .dot b{position:absolute;top:-4px;right:-10px;background:var(--or);color:#ff
 <div class="ov" id="ov" data-act="closeall"></div>
 <div class="sheet" id="sheet"></div>
 <div class="modal" id="modal"></div>
+<div id="print" class="hide"></div>
 <div class="toast" id="toast"><span id="toastTxt"></span><button id="toastBtn"></button></div>
 
 <script>
@@ -612,7 +624,8 @@ function num(v){ return parseFloat(String(v).replace(/[\s  ]/g,'').replace(',
 function renderDash(list,todo){
   setChips([]);
   var c=function(id){ return todo.filter(function(p){return groupOf(p)===id}).length; };
-  var h=objBox(list)+sourceBox(list)+'<div class="box"><h3>Aujourd\'hui</h3><div class="kpis"><div class="kpi"><b>'+(c('msg')+c('rel'))+'</b><span>messages</span></div><div class="kpi"><b>'+(c('rdv')+c('cb'))+'</b><span>RDV et appels</span></div><div class="kpi"><b>'+c('maj')+'</b><span>à mettre à jour</span></div></div></div>';
+  var ym=today().slice(0,7), pm=addDays(ym+'-01',-1).slice(0,7), mn=function(m){ var p=m.split('-'); return MOISL[Number(p[1])-1]+' '+p[0]; };
+  var h='<div class="box"><h3>📄 Bilan pour la Direction</h3><div class="hint" style="margin:0 0 10px">Un PDF aux couleurs d\'Educ\'Assure, prêt à envoyer à Mme KEITA.</div><div class="cact" style="margin:0"><button class="b soft" data-act="bilan" data-m="'+pm+'">'+mn(pm)+'</button><button class="b pri" data-act="bilan" data-m="'+ym+'">'+mn(ym)+' (en cours)</button></div></div>'+objBox(list)+sourceBox(list)+'<div class="box"><h3>Aujourd\'hui</h3><div class="kpis"><div class="kpi"><b>'+(c('msg')+c('rel'))+'</b><span>messages</span></div><div class="kpi"><b>'+(c('rdv')+c('cb'))+'</b><span>RDV et appels</span></div><div class="kpi"><b>'+c('maj')+'</b><span>à mettre à jour</span></div></div></div>';
   // Équipe
   var T=S.team;
   h+='<div class="box"><div style="display:flex;justify-content:space-between;align-items:center"><h3>L\'équipe</h3><div class="seg" style="width:170px;padding:3px"><button class="'+(S.period==='sem'?'on':'')+'" data-act="per" data-p="sem" style="padding:6px">7 jours</button><button class="'+(S.period==='mois'?'on':'')+'" data-act="per" data-p="mois" style="padding:6px">Ce mois</button></div></div>';
@@ -737,14 +750,23 @@ function partSheet(c){
   var o=function(arr,v){ return '<option value=""></option>'+arr.map(function(a){return '<option'+(a===v?' selected':'')+'>'+esc(a)+'</option>'}).join(''); };
   var inp=function(id,lab,v,type){ return '<label class="lbl">'+lab+'</label><input class="in" id="p-'+id+'" type="'+(type||'text')+'" value="'+esc(v||'')+'"'+dis+'>'; };
   var st=c?partStats(c):null, h='';
-  if(c){ var link=x.lien||((P.fiches||{})['Études']+'?lycee='+c), qr='https://api.qrserver.com/v1/create-qr-code/?size=360x360&margin=10&data='+encodeURIComponent(link);
-    var share='Bonjour 👋 Vous souhaitez étudier à l\'étranger ? Remplissez cette fiche (1 minute) et Educ\'Assure vous recontacte : '+link;
+  if(c){
+    var OFF=[['Études','🎓 Études'],['Formations','🗣️ Formations'],['Autres','📄 Autres']], LI=P.liens||{'Études':true}, F=P.fiches||{};
+    var ok=OFF.filter(function(o){return LI[o[0]]}); if(!S.plink||!LI[S.plink]) S.plink='Études';
+    var link=F[S.plink]+'?lycee='+c, qr='https://api.qrserver.com/v1/create-qr-code/?size=360x360&margin=10&data='+encodeURIComponent(link);
+    var lines=ok.map(function(o){ return o[1]+' : '+F[o[0]]+'?lycee='+c; }).join('\n');
+    var kit='Bonjour'+(x.contact?' '+String(x.contact).split(',')[0]:'')+', merci pour notre partenariat avec Educ\'Assure 🤝\nVoici vos liens personnels à partager à vos élèves, membres ou contacts. Chaque fiche remplie avec ces liens vous est attribuée :\n\n'+lines+'\n\nLa fiche prend 1 minute, puis nous recontactons la personne sur WhatsApp. Merci !';
+    var share=(S.plink==='Formations'?'Bonjour 👋 Vous voulez apprendre l\'anglais ou le japonais ? Inscrivez-vous en 1 minute ici : ':S.plink==='Autres'?'Bonjour 👋 Pour une traduction, une assistance visa ou un autre service, remplissez cette fiche (1 minute) : ':'Bonjour 👋 Vous souhaitez étudier à l\'étranger ? Remplissez cette fiche (1 minute) et Educ\'Assure vous recontacte : ')+link;
+    var telP=x.tel?(digits(x.tel).length===8?'226'+digits(x.tel):digits(x.tel)):'';
     h+='<div class="box"><h3>📊 Ce qu\'il nous apporte</h3><div class="kpis"><div class="kpi"><b>'+st.fiches+'</b><span>fiches</span></div><div class="kpi"><b>'+st.gagnes+'</b><span>dossiers / inscrits</span></div><div class="kpi"><b style="font-size:16px">'+(st.montant?fmtF(st.montant):'0 F')+'</b><span>encaissé</span></div></div>'+
       (st.list.length?'<div style="margin-top:10px">'+st.list.slice(0,20).map(function(p){return '<div class="row" data-act="open" data-k="'+key(p)+'"><span>'+ICON[p.kind]+' '+esc(p.nom)+'</span><span class="o">'+esc(p.etape||'Nouveau')+'</span></div>'}).join('')+'</div>':'')+'</div>'+
-      '<div class="box"><h3>🔗 Son lien et son QR code</h3><div class="hint" style="margin:0 0 10px">Les fiches remplies avec ce lien (Études) lui sont comptées automatiquement. Pour les autres prospects, choisis-le dans leur fiche.</div>'+
-      '<div class="msg" style="font-size:13px;word-break:break-all;user-select:all">'+esc(link)+'</div>'+
-      '<div style="text-align:center;margin-top:10px"><img src="'+qr+'" alt="QR code" style="width:180px;height:180px;border-radius:12px"></div>'+
-      '<div class="cact"><button class="b soft" data-act="pcopy" data-l="'+esc(link)+'">Copier le lien</button><a class="b soft" href="'+qr+'" target="_blank" rel="noopener">QR à imprimer</a><a class="b soft" href="https://wa.me/?text='+encodeURIComponent(share)+'" target="_blank" rel="noopener">'+ICO.wa+'Partager</a></div></div>';
+      '<div class="box"><h3>🔗 Ses liens et QR codes</h3><div class="hint" style="margin:0 0 10px">À donner au partenaire pour qu\'il les partage à ses élèves ou contacts. Chaque fiche remplie avec ses liens lui est comptée automatiquement.</div>'+
+      '<a class="b wa" style="margin-bottom:12px" href="'+(telP?waUrl(telP,kit):'https://wa.me/?text='+encodeURIComponent(kit))+'" target="_blank" rel="noopener">'+ICO.wa+'Envoyer ses liens au partenaire</a>'+
+      '<div class="seg" style="margin-bottom:10px">'+OFF.map(function(o){return '<button class="'+(S.plink===o[0]?'on':'')+'" data-act="plink" data-o="'+o[0]+'"'+(LI[o[0]]?'':' style="opacity:.45"')+'>'+o[1]+'</button>'}).join('')+'</div>'+
+      (LI[S.plink]?'<div class="msg" style="font-size:13px;word-break:break-all;user-select:all">'+esc(link)+'</div>'+
+        '<div style="text-align:center;margin-top:10px"><img src="'+qr+'" alt="QR code" style="width:180px;height:180px;border-radius:12px"></div>'+
+        '<div class="cact"><button class="b soft" data-act="pcopy" data-l="'+esc(link)+'">Copier</button><a class="b soft" href="'+qr+'" target="_blank" rel="noopener">QR à imprimer</a><a class="b soft" href="https://wa.me/?text='+encodeURIComponent(share)+'" target="_blank" rel="noopener">'+ICO.wa+'Partager</a></div>':'')+
+      (OFF.some(function(o){return !LI[o[0]]})?'<div class="hint">'+OFF.filter(function(o){return !LI[o[0]]}).map(function(o){return o[1].slice(3)}).join(' et ')+' : lien disponible dès que le champ caché « lycee » est ajouté à la fiche Tally.</div>':'')+'</div>';
   }
   h+='<div class="box"><h3>'+(c?'Informations':'Nouveau lycée ou partenaire')+'</h3>'+
     '<label class="lbl" style="margin-top:6px">Type</label><select class="sel" id="p-type"'+dis+'>'+o(P.types||['Lycée'],x.type).replace('<option value=""></option>','')+'</select>'+
@@ -819,6 +841,37 @@ function sourceBox(list){
     '<div class="row" style="font-weight:600"><span>Total encaissé</span><span class="v">'+fmtF(tot)+'</span></div></div>';
 }
 
+
+/* ---------- Bilan du mois (PDF) ---------- */
+function bilan(ym){
+  var pr=$('print'); pr.className=''; try{ history.pushState({ea:'print'},''); }catch(e){} pr.innerHTML='<div class="pbar"><button class="b ghost" data-act="bclose">← Retour</button></div><div class="empty"><div class="e">⏳</div>Préparation du bilan…</div>';
+  run('getBilan',S.pin,ym).then(function(b){
+    var p=ym.split('-'), mois=MOISL[Number(p[1])-1]+' '+p[0], O=b.offres, sum=function(f){ return Object.keys(O).reduce(function(a,k){return a+(O[k][f]||0)},0); };
+    var tr=function(c){ return '<tr>'+c.map(function(x,i){return '<td'+(i?' class="n"':'')+'>'+x+'</td>'}).join('')+'</tr>'; };
+    var th=function(c){ return '<tr>'+c.map(function(x,i){return '<th'+(i?' class="n"':'')+'>'+x+'</th>'}).join('')+'</tr>'; };
+    var lab={'Études':'Études à l\'étranger','Formations':'Formations en langues','Autres':'Autres services'};
+    var src=Object.keys(b.sources).sort(function(a,c){return b.sources[c].fiches-b.sources[a].fiches});
+    var par=Object.keys(b.partenaires).filter(function(c){var q=b.partenaires[c];return q.fiches||q.gagnes}).sort(function(a,c){return b.partenaires[c].fiches-b.partenaires[a].fiches});
+    var eq=Object.keys(b.equipe);
+    var list=all(), dossiers=list.filter(function(x){return x.etape==='Dossier ouvert'}).length;
+    var h='<div class="pbar"><button class="b ghost" data-act="bclose">← Retour</button><button class="b pri" data-act="bprint">📄 Enregistrer en PDF / imprimer</button></div>'+
+      '<div class="doc"><div class="top"><div><h1>Bilan de '+esc(mois)+'</h1><div style="color:var(--mut)">Service Marketing et Commercial · Plan Nov. 2026 – Janv. 2027</div></div><img src="logo.png" alt="Educ\'Assure"></div>'+
+      '<div class="k4"><div><b>'+sum('fiches')+'</b>fiches reçues</div><div><b>'+sum('rdv')+'</b>entretiens et tests</div><div><b>'+sum('gagnes')+'</b>dossiers / inscriptions</div><div><b style="font-size:16px">'+fmtF(sum('encaisse'))+'</b>encaissé</div></div>'+
+      '<h2>Résultats par offre</h2><table>'+th(['Offre','Fiches','RDV','Gagnés','Perdus','Encaissé'])+Object.keys(O).map(function(k){var o=O[k];return tr([lab[k]||k,o.fiches,o.rdv,o.gagnes,o.perdus,fmtF(o.encaisse)]);}).join('')+'</table>'+
+      '<h2>D\'où viennent les prospects</h2><table>'+th(['Source','Fiches','Gagnés','Encaissé'])+src.map(function(k){var o=b.sources[k];return tr([esc(k),o.fiches,o.gagnes,fmtF(o.encaisse)]);}).join('')+'</table>'+
+      '<h2>Lycées et partenaires</h2><div>'+(b.lycees.visites||0)+' visite'+((b.lycees.visites||0)>1?'s':'')+' ce mois · '+(b.lycees.visitesTotal||0)+' lycée(s) visité(s) sur 30 depuis le début · '+(b.lycees.accords||0)+' partenariat(s) accepté(s) · '+(b.lycees.stands||0)+' journée(s) portes ouvertes</div>'+
+      (par.length?'<table style="margin-top:8px">'+th(['Partenaire','Fiches du mois','Gagnés','Encaissé'])+par.map(function(c){var q=b.partenaires[c];return tr([esc(c+' · '+(q.nom||'')),q.fiches,q.gagnes,fmtF(q.encaisse)]);}).join('')+'</table>':'')+
+      '<h2>Activité de l\'équipe</h2><table>'+th(['Personne','Messages','Appels','RDV fixés','Visites / relances partenaires'])+eq.map(function(n){var e=b.equipe[n];return tr([esc(n),e.messages,e.appels,e.rdv,e.visites]);}).join('')+'</table>'+
+      '<h2>Où en est-on du plan (au '+fd(today())+')</h2><table>'+th(['Objectif au 31 janvier','Réalisé','Cible'])+
+        tr(['Fiches prospects (depuis le 16 nov.)',list.filter(function(x){return (x.date||'')>='2026-11-16'}).length,'600'])+tr(['Dossiers ouverts (Études)',dossiers,'10 à 15'])+
+        tr(['Inscrits en anglais',list.filter(function(x){return x.kind==='Formations'&&x.etape==='Inscrit et payé'&&/Anglais/.test(mainDetail(x))}).length,'40'])+
+        tr(['Inscrits en japonais',list.filter(function(x){return x.kind==='Formations'&&x.etape==='Inscrit et payé'&&/Japonais/.test(mainDetail(x))}).length,'15'])+
+        tr(['Lycées visités',b.lycees.visitesTotal||0,'30'])+'</table>'+
+      '<div class="foot">Educ\'Assure · Kalgondé, derrière la brigade des sapeurs-pompiers, Ouagadougou · WhatsApp +226 68 53 53 94 · assureeduc@gmail.com<br>Bilan généré le '+fd(today())+' depuis l\'application de suivi.</div></div>';
+    pr.innerHTML=h; pr.scrollTop=0;
+  }).catch(function(e){ pr.className='hide'; err(e); });
+}
+
 /* ---------- Toast ---------- */
 var tt=null;
 function toast(msg,btn,fn){ var t=$('toast'); $('toastTxt').innerHTML=msg; var b=$('toastBtn');
@@ -869,6 +922,10 @@ document.addEventListener('click',function(e){
     case 'pvis': partAct(el.getAttribute('data-c'),'visite'); break;
     case 'prel': partAct(el.getAttribute('data-c'),'relance'); break;
     case 'pasave': partActSave(); break;
+    case 'plink': S.plink=el.getAttribute('data-o'); var sb=document.querySelector('#sheet .sbody'), y=sb?sb.scrollTop:0; partSheet(S.pcur); var sb2=document.querySelector('#sheet .sbody'); if(sb2) sb2.scrollTop=y; break;
+    case 'bilan': bilan(el.getAttribute('data-m')); break;
+    case 'bprint': window.print(); break;
+    case 'bclose': $('print').className='hide'; try{ if(history.state&&history.state.ea==='print') history.back(); }catch(x){} break;
     case 'pcopy': try{ navigator.clipboard.writeText(el.getAttribute('data-l')).then(function(){toast('Lien copié ✓')}); }catch(x){ toast(esc(el.getAttribute('data-l'))); } break;
     case 'testN': run('testNotif',S.pin).then(function(){ toast('Notification envoyée ✓'); }).catch(err); break;
   }
@@ -883,6 +940,7 @@ $('pin').addEventListener('keyup',function(e){ if(e.key==='Enter') doLogin(); })
 
 /* Touche retour */
 window.addEventListener('popstate',function(e){
+  if($('print').className!=='hide'){ $('print').className='hide'; return; }
   if($('sheet').className==='sheet open'||$('modal').className==='modal open'){ hideSheet(); return; }
   var st=e.state||{};
   if(st.ea==='tab'){ tab(st.t,true); return; }
