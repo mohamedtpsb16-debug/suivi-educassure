@@ -425,7 +425,7 @@ function card(p,g){
   var k=key(p), sub=[ICON[p.kind]+' '+(mainDetail(p)||p.kind), p.etape||'Nouveau'];
   var flags='';
   if(p.prio==='PRIORITÉ') flags+='<span class="flag hot">🔥 Priorité</span>';
-  else if(p.rdv && p.rdv>=today()) flags+='<span class="flag rdv">'+fds(p.rdv)+(p.heure?' · '+p.heure.replace(':','h'):'')+'</span>';
+  else if(p.rdv && p.rdv>=today()) flags+='<span class="flag rdv">'+fds(p.rdv)+(p.heure?' · '+p.heure.replace(':','h'):'')+(p.mode==='En ligne'?' · 💻 en ligne':'')+'</span>';
   else if(p.noRdv) flags+='<span class="flag warn">Date RDV ?</span>';
   if(p.numBad && !isClosed(p)) flags='<span class="flag hot">📵 Numéro ?</span>';
   var act='';
@@ -484,11 +484,13 @@ function drawFtab(){
     if(p.hasRdv && p.rdv && w){
       var pass=p.rdv<today();
       h+='<div class="box" style="background:var(--vio-50)"><h3 style="color:var(--vio)">📅 '+(p.kind==='Études'?'Entretien':'Test')+' '+esc(quand(p.rdv))+esc(hh(p.heure))+'</h3>'+
-        '<div class="hint" style="margin:2px 0 10px;color:var(--ink)">'+(pass?'Le rendez-vous est passé. La personne est-elle venue ?':p.rdv===today()?'C\'est aujourd\'hui. Si la personne ne vient pas, touche « Absent ».':'Un changement ? Reporte ou annule le rendez-vous.')+'</div>'+
-        '<div class="cact" style="flex-wrap:wrap"><button class="b soft" data-act="rdvm" data-t="reporte">🔁 Reporter</button>'+(p.rdv<=today()?'<button class="b orange" data-act="rdvm" data-t="absent">🚫 Absent</button>':'')+'<button class="b ghost" data-act="rdvm" data-t="annule">✕ Annuler</button></div></div>';
+        modeSeg(p.mode||'Présentiel','rmode')+
+        '<div class="hint" style="margin:10px 0;color:var(--ink)">'+(pass?'Le rendez-vous est passé. Comment ça s\'est passé ?':p.rdv===today()?'C\'est aujourd\'hui. Une fois le rendez-vous fait, touche « Réalisé ».':'Une fois le rendez-vous fait, touche « Réalisé ».')+'</div>'+
+        '<div class="cact" style="margin-top:0"><button class="b pri" data-act="rdvm" data-t="fait">✅ Réalisé</button>'+(p.rdv<=today()?'<button class="b orange" data-act="rdvm" data-t="absent">🚫 Absent</button>':'')+'</div>'+
+        '<div class="cact" style="margin-top:8px"><button class="b soft" data-act="rdvm" data-t="reporte">🔁 Reporter</button><button class="b ghost" data-act="rdvm" data-t="annule">✕ Annuler</button></div></div>';
     }
     h+='<div class="box">';
-    if(p.action==='RDV passé') h+='<div class="hint" style="margin:0 0 6px;color:#B35A14">Le RDV du '+fds(p.rdv)+' est passé : si la personne est venue, choisis la nouvelle étape (ex. « Proposition envoyée »). Sinon, touche « Absent » ci-dessus.</div>';
+    if(p.action==='RDV passé') h+='<div class="hint" style="margin:0 0 6px;color:#B35A14">Le RDV du '+fds(p.rdv)+' est passé : touche « Réalisé » ou « Absent » ci-dessus.</div>';
     h+='<label class="lbl" style="margin-top:0">Étape</label><select class="sel" id="f-etape"'+dis+'>'+opts(L.etapes,et)+'</select>'+
       (p.hasRdv?'<label class="lbl">'+(p.kind==='Études'?'Entretien':'Test')+' : date et heure</label><div class="two"><input class="in" type="date" id="f-rdv" value="'+esc(p.rdv)+'"'+dis+'>'+(p.hasHeure?'<input class="in" type="time" id="f-heure" value="'+esc(p.heure)+'"'+dis+'>':'<span></span>')+'</div>':'')+
       '<label class="lbl">Dernier message sans réponse</label><div class="two"><input class="in" type="date" id="f-last" value="'+esc(p.last)+'"'+dis+'>'+
@@ -718,8 +720,21 @@ function rdvModal(t){
   var msg={ reporte:'',
     absent:'Bonjour '+p.nom.trim()+', nous vous attendions '+quand(p.rdv)+hh(p.heure)+' pour votre '+nm+' à Educ\'Assure. Pas de souci, cela arrive ! Quel jour et quelle heure vous conviennent pour le reprogrammer ?',
     annule:'Bonjour '+p.nom.trim()+', c\'est bien noté : votre '+nm+' prévu '+quand(p.rdv)+hh(p.heure)+' est annulé. Dites-nous simplement quand vous souhaitez le reprogrammer, nous restons disponibles.' }[t];
-  var h='<h3>'+{reporte:'🔁 Reporter le rendez-vous',absent:'🚫 '+esc(p.nom)+' n\'est pas venu(e)',annule:'✕ Annuler le rendez-vous'}[t]+'</h3>';
-  if(t==='reporte') h+='<div class="hint" style="margin:0">Actuellement : '+esc(quand(p.rdv)+hh(p.heure))+'</div><label class="lbl">Nouvelle date et heure</label><div class="two"><input class="in" type="date" id="r-date" value="'+addDays(today(),1)+'"><input class="in" type="time" id="r-heure" value="'+esc(p.heure||'10:00')+'"></div>';
+  var h='<h3>'+{fait:'✅ Rendez-vous réalisé',reporte:'🔁 Reporter le rendez-vous',absent:'🚫 '+esc(p.nom)+' n\'est pas venu(e)',annule:'✕ Annuler le rendez-vous'}[t]+'</h3>';
+  S.rMode=p.mode||'Présentiel';
+  if(t==='fait'){
+    var L=S.data.lists[p.kind], sui=(SUITE[p.kind]||[]).filter(function(x){return L.etapes.indexOf(x)>=0;});
+    S.rEt=sui[0]||'';
+    h+='<div class="hint" style="margin:0">'+esc(p.nom)+' · '+esc(quand(p.rdv)+hh(p.heure))+'</div>'+
+      '<label class="lbl">Le rendez-vous s\'est fait</label>'+modeSeg(S.rMode,'rfm')+
+      '<label class="lbl">Et maintenant ?</label><div class="opts" style="grid-template-columns:1fr">'+sui.map(function(x){return '<button class="opt'+(x===S.rEt?' on':'')+'" data-act="rfe" data-e="'+esc(x)+'">'+esc(SUITEL[x]||x)+'</button>'}).join('')+'</div>'+
+      '<div id="r-won" style="display:'+(WONX.indexOf(S.rEt)>=0?'block':'none')+'"><label class="lbl">Montant encaissé (facultatif)</label><input class="in" type="number" inputmode="numeric" id="r-mt" placeholder="En F CFA" value="'+(p.montant||'')+'"></div>'+
+      '<div id="r-lost" style="display:none"><label class="lbl">Raison de la perte</label><select class="sel" id="r-raison"><option value=""></option>'+S.data.lists.raisons.map(function(x){return '<option>'+esc(x)+'</option>'}).join('')+'</select></div>'+
+      '<label class="lbl">Compte rendu (facultatif)</label><textarea class="in" id="r-note" style="min-height:70px" placeholder="Ex. : intéressé par la Chine, attend l\'avis des parents"></textarea>'+
+      '<div class="cact"><button class="b ghost" data-act="closeall">Retour</button><button class="b pri" id="rBtn" data-act="rdvsave">Enregistrer</button></div>';
+    m.innerHTML=h; hideOnlySheetKeep(); $('ov').className='ov open'; m.className='modal open'; return;
+  }
+  if(t==='reporte') h+='<div class="hint" style="margin:0">Actuellement : '+esc(quand(p.rdv)+hh(p.heure))+'</div><label class="lbl">Nouvelle date et heure</label><div class="two"><input class="in" type="date" id="r-date" value="'+addDays(today(),1)+'"><input class="in" type="time" id="r-heure" value="'+esc(p.heure||'10:00')+'"></div><label class="lbl">Le rendez-vous se fera</label>'+modeSeg(S.rMode,'rfm');
   if(t==='absent') h+='<div class="hint" style="margin:0">La date est effacée et les relances reprennent pour reprogrammer.</div><label class="lbl">Le rappeler le</label><input class="in" type="date" id="r-cb" value="'+addDays(today(),1)+'">';
   if(t!=='reporte') h+='<label class="lbl">'+(t==='absent'?'Note (facultatif)':'Motif (facultatif)')+'</label><input class="in" id="r-note" placeholder="'+(t==='absent'?'Ex. : pas joignable':'Ex. : voyage, examens…')+'">';
   if(send) h+='<label class="chk"><input type="checkbox" id="r-send" checked> Prévenir sur WhatsApp</label><textarea class="in" id="r-msg" style="margin-top:8px;min-height:110px">'+esc(msg)+'</textarea>';
@@ -728,15 +743,23 @@ function rdvModal(t){
   if(t==='reporte') rdvMsg();
 }
 function rdvMsg(){ var p=find(S.cur), d=val('r-date'), hr=val('r-heure'), t=$('r-msg'); if(!t||S.rdvT!=='reporte') return;
-  t.value='Bonjour '+p.nom.trim()+', votre '+rdvNom(p)+' avec Educ\'Assure est reporté à '+quand(d).replace(/^le /,'')+hh(hr)+'. Merci de confirmer votre présence en répondant OUI.'; }
+  t.value='Bonjour '+p.nom.trim()+', votre '+rdvNom(p)+' avec Educ\'Assure est reporté à '+quand(d).replace(/^le /,'')+hh(hr)+(S.rMode==='En ligne'?', en ligne':'')+'. Merci de confirmer votre présence en répondant OUI.'+(S.rMode==='En ligne'?' Nous vous enverrons le lien de connexion juste avant.':''); }
+/* Présentiel / En ligne */
+var SUITE={'Études':['Proposition envoyée','Dossier ouvert','En veille','Perdu'],'Formations':['Inscrit et payé','Intéressé','Perdu'],'Autres':['En cours','Terminé','Perdu']};
+var SUITEL={'Proposition envoyée':'📨 Proposition à envoyer','Dossier ouvert':'🎉 Dossier ouvert','En veille':'⏸️ Il/elle réfléchit (en veille)','Perdu':'✕ Pas intéressé(e) (perdu)','Inscrit et payé':'🎉 Inscrit(e) et payé','Intéressé':'💭 Intéressé(e), réfléchit encore','En cours':'🔄 En cours','Terminé':'✓ Terminé'};
+var WONX=['Dossier ouvert','Inscrit et payé','En cours','Terminé'];
+function modeSeg(v,act){ return '<div class="seg">'+[['Présentiel','🏢 Présentiel'],['En ligne','💻 En ligne']].map(function(x){return '<button class="'+(x[0]===v?'on':'')+'" data-act="'+act+'" data-m="'+x[0]+'">'+x[1]+'</button>'}).join('')+'</div>'; }
+function segOn(el){ [].forEach.call(el.parentNode.children,function(b){ b.className=b===el?'on':''; }); }
 function rdvSave(){
   var p=find(S.cur), t=S.rdvT, d={}, send=$('r-send')&&$('r-send').checked, txt=send?val('r-msg').trim():'';
-  if(t==='reporte'){ d.rdv=val('r-date'); d.heure=val('r-heure'); if(!d.rdv){ toast('Choisis la nouvelle date.'); return; } }
+  if(t==='fait'){ d.etape=S.rEt; d.mode=S.rMode; d.note=val('r-note')||''; if(WONX.indexOf(S.rEt)>=0) d.montant=val('r-mt')||'';
+    if(S.rEt==='Perdu'){ d.raison=val('r-raison'); if(!d.raison){ toast('Choisis la raison de la perte.'); return; } } }
+  else if(t==='reporte'){ d.rdv=val('r-date'); d.heure=val('r-heure'); d.mode=S.rMode; if(!d.rdv){ toast('Choisis la nouvelle date.'); return; } }
   else { d.note=val('r-note')||''; if(t==='absent') d.cb=val('r-cb'); }
   if(txt){ d.texte=txt; window.open(waUrl(p.num,txt),'_blank'); }
   $('rBtn').disabled=true;
   run('rdvAction',S.pin,p.kind,p.row,p.nom,t,d).then(function(res){ replace(res.row); bumpDone(); closeSheet(); render();
-    toast({reporte:'RDV reporté à '+quand(d.rdv)+hh(d.heure)+' ✓',absent:'Absence notée · rappel '+quand(d.cb)+' ✓',annule:'RDV annulé ✓'}[t]); })
+    toast({fait:'RDV réalisé ✓ · '+(SUITEL[d.etape]||d.etape||'').replace(/^\S+ /,''),reporte:'RDV reporté à '+quand(d.rdv)+hh(d.heure)+' ✓',absent:'Absence notée · rappel '+quand(d.cb)+' ✓',annule:'RDV annulé ✓'}[t]); })
     .catch(function(e){ var b=$('rBtn'); if(b) b.disabled=false; err(e); });
 }
 /* Rappel après un RDV manqué : message pour reprogrammer */
@@ -903,7 +926,7 @@ function bilan(du,au){
     var list=all(), dossiers=list.filter(function(x){return x.etape==='Dossier ouvert'}).length;
     var h='<div class="pbar"><button class="b ghost" data-act="bclose">← Retour</button><button class="b pri" data-act="bprint">📄 Enregistrer en PDF / imprimer</button></div>'+
       '<div class="doc"><div class="top"><div><h1>'+esc(mois)+'</h1><div style="color:var(--mut)">Service Marketing et Commercial · Plan Nov. 2026 – Janv. 2027</div></div><img src="logo.png" alt="Educ\'Assure"></div>'+
-      '<div class="k4"><div><b>'+sum('fiches')+'</b>fiches reçues</div><div><b>'+sum('rdv')+'</b>entretiens et tests</div><div><b>'+sum('gagnes')+'</b>dossiers / inscriptions</div><div><b style="font-size:16px">'+fmtF(sum('encaisse'))+'</b>encaissé</div></div>'+
+      '<div class="k4"><div><b>'+sum('fiches')+'</b>fiches reçues</div><div><b>'+sum('rdv')+'</b>entretiens et tests'+(b.journal&&b.journal['RDV réalisé']?'<br><small>dont '+b.journal['RDV réalisé']+' réalisé'+(b.journal['RDV réalisé']>1?'s':'')+'</small>':'')+'</div><div><b>'+sum('gagnes')+'</b>dossiers / inscriptions</div><div><b style="font-size:16px">'+fmtF(sum('encaisse'))+'</b>encaissé</div></div>'+
       '<h2>Résultats par offre</h2><table>'+th(['Offre','Fiches','RDV','Gagnés','Perdus','Encaissé'])+Object.keys(O).map(function(k){var o=O[k];return tr([lab[k]||k,o.fiches,o.rdv,o.gagnes,o.perdus,fmtF(o.encaisse)]);}).join('')+'</table>'+
       '<h2>D\'où viennent les prospects</h2><table>'+th(['Source','Fiches','Gagnés','Encaissé'])+src.map(function(k){var o=b.sources[k];return tr([esc(k),o.fiches,o.gagnes,fmtF(o.encaisse)]);}).join('')+'</table>'+
       '<h2>Lycées et partenaires</h2><div>'+(b.lycees.visites||0)+' visite'+((b.lycees.visites||0)>1?'s':'')+' sur la période · '+(b.lycees.visitesTotal||0)+' lycée(s) visité(s) sur 30 depuis le début · '+(b.lycees.accords||0)+' partenariat(s) accepté(s) · '+(b.lycees.stands||0)+' journée(s) portes ouvertes</div>'+
@@ -958,6 +981,11 @@ document.addEventListener('click',function(e){
     case 'per': S.period=el.getAttribute('data-p'); render(); break;
     case 'copyT': try{ navigator.clipboard.writeText(S.data.ntfy).then(function(){toast('Nom copié ✓')},function(){toast(esc(S.data.ntfy))}); }catch(x){ toast(esc(S.data.ntfy)); } break;
     case 'rdvm': rdvModal(el.getAttribute('data-t')); break;
+    case 'rfm': S.rMode=el.getAttribute('data-m'); segOn(el); rdvMsg(); break;
+    case 'rfe': S.rEt=el.getAttribute('data-e'); [].forEach.call(el.parentNode.children,function(b){ b.className='opt'+(b===el?' on':''); });
+      $('r-won').style.display=WONX.indexOf(S.rEt)>=0?'block':'none'; $('r-lost').style.display=S.rEt==='Perdu'?'block':'none'; break;
+    case 'rmode': (function(){ var p=find(S.cur), md=el.getAttribute('data-m'); if((p.mode||'Présentiel')===md) return; segOn(el);
+      run('setRdvMode',S.pin,p.kind,p.row,p.nom,md).then(function(res){ replace(res.row); toast(md==='En ligne'?'RDV en ligne ✓':'RDV en présentiel ✓'); }).catch(err); })(); break;
     case 'rdvsave': rdvSave(); break;
     case 'reprog': reprog(k); break;
     case 'grp': grpStart(el.getAttribute('data-g')); break;
