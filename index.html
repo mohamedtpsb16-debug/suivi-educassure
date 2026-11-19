@@ -917,6 +917,7 @@ function grpSend(){ var p=find(S.grpK), t=val('g-msg').trim(); window.open(waUrl
 
 /* ---------- Lycées et partenaires ---------- */
 function loadParts(){ if(!S.parts){ try{ S.parts=JSON.parse(stored('ea_parts')||'null'); }catch(e){} }
+  if(!S.dep){ try{ S.dep=JSON.parse(stored('ea_dep')||'null'); }catch(e){} run('getDepenses',S.pin).then(function(d){ S.dep=d; store('ea_dep',JSON.stringify(d)); }).catch(function(){}); }
   return run('getPartners',S.pin).then(function(r){ S.parts=r; store('ea_parts',JSON.stringify(r)); if(S.tab==='part'||S.tab==='dash') render(); }).catch(err); }
 function partOpts(sel){ var L=(S.parts&&S.parts.list||[]).filter(function(x){return !x.vide});
   return L.map(function(x){ return '<option value="'+esc(x.code)+'"'+(x.code===sel?' selected':'')+'>'+esc(x.code+' · '+x.nom)+'</option>'; }).join(''); }
@@ -961,6 +962,10 @@ function partSheet(c){
     var share=(S.plink==='Formations'?'Bonjour 👋 Vous voulez apprendre l\'anglais ou le japonais ? Inscrivez-vous en 1 minute ici : ':S.plink==='Autres'?'Bonjour 👋 Pour une traduction, une assistance visa ou un autre service, remplissez cette fiche (1 minute) : ':'Bonjour 👋 Vous souhaitez étudier à l\'étranger ? Remplissez cette fiche (1 minute) et Educ\'Assure vous recontacte : ')+link;
     var telP=x.tel?(digits(x.tel).length===8?'226'+digits(x.tel):digits(x.tel)):'';
     h+='<div class="box"><h3 class="st">'+IC('chart')+'Ce qu\'il nous apporte</h3><div class="kpis" style="margin-top:8px"><div class="kpi"><b>'+st.fiches+'</b><span>fiches</span></div><div class="kpi"><b>'+st.gagnes+'</b><span>dossiers / inscrits</span></div><div class="kpi"><b style="font-size:16px">'+(st.montant?fmtF(st.montant):'0 F')+'</b><span>encaissé</span></div></div>'+
+      (function(){ var dps=(S.dep||[]).filter(function(d){return d.part===c}), dt=dps.reduce(function(a,d){return a+d.m},0);
+        return (dt?'<div class="sline" style="margin-top:12px"><span>Dépensé pour lui</span><span><b>'+fmtF(dt)+'</b></span></div>'+
+          '<div class="sline" style="margin-top:4px;color:var(--mut)"><span>'+(st.fiches?'Coût par fiche : '+fmtF(Math.round(dt/st.fiches)):'Pas encore de fiche')+'</span><span'+(st.montant>=dt?' style="color:#1E9E5A;font-weight:600"':'')+'>'+(st.montant?(st.montant>=dt?'rentable · +':'reste ')+fmtF(Math.abs(st.montant-dt)):'')+'</span></div>':'')+
+          (canSend()?'<button class="lnk2" style="margin-top:10px;text-align:left" data-act="deppart">+ Noter une dépense pour '+(x.type==='Lycée'?'ce lycée':'ce partenaire')+'</button>':''); })()+
       (st.list.length?'<div style="margin-top:10px">'+st.list.slice(0,20).map(function(p){return '<div class="row" data-act="open" data-k="'+key(p)+'"><span>'+ICON[p.kind]+' '+esc(p.nom)+'</span><span class="o">'+esc(p.etape||'Nouveau')+'</span></div>'}).join('')+'</div>':'')+'</div>'+
       '<div class="box"><h3 class="st">'+IC('link')+'Ses liens</h3><div class="hint" style="margin:0 0 10px">Les fiches remplies avec ses liens lui sont comptées.</div>'+
       '<a class="b wa" style="margin-bottom:12px" href="'+(telP?waUrl(telP,kit):'https://wa.me/?text='+encodeURIComponent(kit))+'" target="_blank" rel="noopener">'+ICO.wa+'Envoyer ses liens au partenaire</a>'+
@@ -1043,20 +1048,22 @@ function depBox(list){
     '<div class="cact">'+(cd?'<button class="b soft sm" data-act="depnew">+ Ajouter une dépense</button>':'')+'<button class="b ghost sm" data-act="deplist">Voir tout ('+D.length+')</button></div></div>';
   return h;
 }
-function depModal(){
-  var m=$('modal'); S.depCat='Publicité';
+function depModal(pre){
+  pre=pre||{}; var m=$('modal'); S.depCat=pre.cat||'Publicité'; var showP=!!pre.part||S.depCat==='Stand / JPO';
   m.innerHTML='<h3>Nouvelle dépense</h3>'+
     '<div class="two" style="margin-top:12px"><div><label class="lbl" style="margin-top:0">Montant (F CFA)</label><input class="in" id="dep-m" inputmode="numeric" placeholder="Ex. : 15 000"></div><div><label class="lbl" style="margin-top:0">Date</label><input class="in" type="date" id="dep-date" value="'+today()+'"></div></div>'+
     '<label class="lbl">Type de dépense</label><div class="opts" style="grid-template-columns:1fr 1fr 1fr;margin-top:0;gap:6px">'+DEPCAT.map(function(c){return '<button class="opt'+(c[0]===S.depCat?' on':'')+'" data-act="depcat" data-c="'+esc(c[0])+'" style="padding:10px 6px;text-align:center;font-size:13px">'+c[1]+' '+esc(c[0])+'</button>'}).join('')+'</div>'+
     '<label class="lbl">Elle sert à attirer des prospects par</label><select class="sel" id="dep-canal">'+CANAUX.map(function(x){return '<option value="'+esc(x)+'">'+esc(CANL[x]||x)+'</option>'}).join('')+'<option value="">Aucun canal précis</option></select>'+
-    '<label class="chk" style="margin-top:12px"><input type="checkbox" id="dep-plan" checked> Comptée dans le budget du plan ('+fmtF(BUDGET_PLAN)+')</label>'+
+    '<div id="w-dpart"'+(showP?'':' class="hide"')+'><label class="lbl">Pour quel lycée ou partenaire ? (facultatif)</label><select class="sel" id="dep-part"><option value="">— Aucun en particulier —</option>'+partOpts(pre.part||'')+'</select></div>'+
+    '<label class="chk" style="margin-top:12px"><input type="checkbox" id="dep-plan"'+(S.depCat==='Stand / JPO'?'':' checked')+'> Comptée dans le budget du plan ('+fmtF(BUDGET_PLAN)+')</label>'+
     '<label class="lbl">Note (facultatif)</label><input class="in" id="dep-note" placeholder="Ex. : 200 flyers pour les lycées">'+
     '<div class="cact"><button class="b ghost" data-act="closeall">Annuler</button><button class="b pri" id="depBtn" data-act="depsave">Enregistrer</button></div>';
+  if(pre.part||S.depCat==='Stand / JPO') $('dep-canal').value='Visite d\'un lycée';
   $('ov').className='ov open'; m.className='modal open';
   try{ if(!(history.state&&history.state.ea==='sheet')) history.pushState({ea:'sheet'},''); }catch(e){}
 }
 function depSave(){
-  var d={m:val('dep-m'),date:val('dep-date'),cat:S.depCat,canal:val('dep-canal'),plan:$('dep-plan').checked,note:val('dep-note')};
+  var d={m:val('dep-m'),date:val('dep-date'),cat:S.depCat,canal:val('dep-canal'),plan:$('dep-plan').checked,note:val('dep-note'),part:val('dep-part')||''};
   if(!Number(String(d.m).replace(/[^0-9]/g,''))){ toast('Indique le montant.'); return; }
   $('depBtn').disabled=true;
   run('addDepense',S.pin,d).then(function(r){ S.dep=r; store('ea_dep',JSON.stringify(r)); closeSheet(); render(); toast('Dépense notée ✓'); })
@@ -1068,7 +1075,7 @@ function depList(){
   var h=Object.keys(by).sort().reverse().map(function(k){ var L=by[k], t=L.reduce(function(a,d){return a+d.m},0);
     return '<div class="dmo"><span>'+MOISL[Number(k.slice(5))-1].replace(/^./,function(c){return c.toUpperCase()})+' '+k.slice(0,4)+'</span><span>'+fmtF(t)+'</span></div>'+
       L.map(function(d){ return '<div class="dli"><div class="e">'+catIc(d.cat)+'</div><div class="t"><div>'+fmtF(d.m)+(d.plan?'':' <span class="flag warn" style="font-size:10.5px">hors plan</span>')+'</div>'+
-        '<div class="sub">'+esc([fds(d.date),d.cat,d.canal?(CANL[d.canal]||d.canal):'',d.note].filter(Boolean).join(' · '))+'</div></div>'+
+        '<div class="sub">'+esc([fds(d.date),d.cat,d.part?partName(d.part):(d.canal?(CANL[d.canal]||d.canal):''),d.note].filter(Boolean).join(' · '))+'</div></div>'+
         (cd?'<button class="x" data-act="depdel" data-id="'+esc(d.id)+'" title="Supprimer">✕</button>':'')+'</div>'; }).join(''); }).join('');
   sh.innerHTML='<div class="shead"><div class="grab"></div><div class="ctop"><div class="av e" style="width:48px;height:48px">'+IC('wallet').replace('class="si"','class="si" style="width:22px;height:22px"')+'</div>'+
     '<div class="cinfo"><div class="nm" style="font-size:17px">Dépenses</div><div class="sub">'+D.length+' dépense'+(D.length>1?'s':'')+' · '+fmtF(D.reduce(function(a,d){return a+d.m},0))+'</div></div>'+
@@ -1116,7 +1123,7 @@ function bilan(du,au){
     var th=function(c){ return '<tr>'+c.map(function(x,i){return '<th'+(i?' class="n"':'')+'>'+x+'</th>'}).join('')+'</tr>'; };
     var lab={'Études':'Études à l\'étranger','Formations':'Formations en langues','Autres':'Autres services'};
     var src=Object.keys(b.sources).sort(function(a,c){return b.sources[c].fiches-b.sources[a].fiches});
-    var par=Object.keys(b.partenaires).filter(function(c){var q=b.partenaires[c];return q.fiches||q.gagnes}).sort(function(a,c){return b.partenaires[c].fiches-b.partenaires[a].fiches});
+    var par=Object.keys(b.partenaires).filter(function(c){var q=b.partenaires[c];return q.fiches||q.gagnes||q.depense}).sort(function(a,c){return b.partenaires[c].fiches-b.partenaires[a].fiches});
     var eq=Object.keys(b.equipe);
     var list=all(), dossiers=list.filter(function(x){return x.etape==='Dossier ouvert'}).length;
     var h='<div class="pbar"><button class="b ghost" data-act="bclose">← Retour</button><button class="b pri" data-act="bprint">📄 Enregistrer en PDF / imprimer</button></div>'+
@@ -1130,7 +1137,7 @@ function bilan(du,au){
         (Object.keys(b.depenses.canaux).length?'<table style="margin-top:8px">'+th(['Canal','Dépensé','Fiches','Coût par fiche'])+Object.keys(b.depenses.canaux).map(function(k){ var n=(b.sources[k]||{}).fiches||0, v=b.depenses.canaux[k];
           return tr([esc(CANL[k]||k),fmtF(v),n,n?fmtF(Math.round(v/n)):'—']); }).join('')+'</table>':''):'')+
       '<h2>Lycées et partenaires</h2><div>'+(b.lycees.visites||0)+' visite'+((b.lycees.visites||0)>1?'s':'')+' sur la période · '+(b.lycees.visitesTotal||0)+' lycée(s) visité(s) sur 30 depuis le début · '+(b.lycees.accords||0)+' partenariat(s) accepté(s) · '+(b.lycees.stands||0)+' journée(s) portes ouvertes</div>'+
-      (par.length?'<table style="margin-top:8px">'+th(['Partenaire','Fiches (période)','Gagnés','Encaissé'])+par.map(function(c){var q=b.partenaires[c];return tr([esc(c+' · '+(q.nom||'')),q.fiches,q.gagnes,fmtF(q.encaisse)]);}).join('')+'</table>':'')+
+      (par.length?'<table style="margin-top:8px">'+th(['Partenaire','Fiches (période)','Gagnés','Encaissé','Dépensé'])+par.map(function(c){var q=b.partenaires[c];return tr([esc(c+' · '+(q.nom||'')),q.fiches,q.gagnes,fmtF(q.encaisse),q.depense?fmtF(q.depense):'—']);}).join('')+'</table>':'')+
       '<h2>Activité de l\'équipe</h2><table>'+th(['Personne','Messages','Appels','RDV fixés','Visites / relances partenaires'])+eq.map(function(n){var e=b.equipe[n];return tr([esc(n),e.messages,e.appels,e.rdv,e.visites]);}).join('')+'</table>'+
       '<h2>Où en est-on du plan (au '+fd(today())+')</h2><table>'+th(['Objectif au 31 janvier','Réalisé','Cible'])+
         tr(['Fiches prospects (depuis le 16 nov.)',list.filter(function(x){return (x.date||'')>='2026-11-16'}).length,'600'])+tr(['Dossiers ouverts (Études)',dossiers,'10 à 15'])+
@@ -1157,7 +1164,8 @@ document.addEventListener('click',function(e){
     case 'login': doLogin(); break;
     case 'reload': load(true); break;
     case 'depnew': hideOnlySheetKeep(); depModal(); break;
-    case 'depcat': S.depCat=el.getAttribute('data-c'); [].forEach.call(el.parentNode.children,function(b){ b.className='opt'+(b===el?' on':''); }); if(S.depCat==='Stand / JPO'){ $('dep-plan').checked=false; $('dep-canal').value='Visite d\'un lycée'; } break;
+    case 'depcat': S.depCat=el.getAttribute('data-c'); [].forEach.call(el.parentNode.children,function(b){ b.className='opt'+(b===el?' on':''); }); if(S.depCat==='Stand / JPO'){ $('dep-plan').checked=false; $('dep-canal').value='Visite d\'un lycée'; } $('w-dpart').className=($('dep-canal').value==='Visite d\'un lycée'||S.depCat==='Stand / JPO')?'':'hide'; break;
+    case 'deppart': (function(){ var x=pfind(S.pcur); hideOnlySheetKeep(); depModal({part:S.pcur,cat:x&&x.type==='Lycée'?'Stand / JPO':'Autre'}); })(); break;
     case 'depsave': depSave(); break;
     case 'deplist': depList(); break;
     case 'depdel': depDel(el.getAttribute('data-id')); break;
@@ -1229,6 +1237,7 @@ document.addEventListener('input',function(e){ if(e.target.type==='date') dxSync
   if(e.target.id==='q'){ S.q=e.target.value; var pos=e.target.selectionStart; render(); var q=$('q'); q.focus(); q.setSelectionRange(pos,pos); } });
 document.addEventListener('blur',function(e){ if(e.target.id==='n-wa'){ var w=numCheck(e.target.value); if(e.target.value && w) toast('⚠️ Numéro : '+esc(w)+'. Vérifie avec la personne.'); } },true);
 document.addEventListener('change',function(e){ if(e.target.id==='fet'){ S.etape=e.target.value; render(); }
+  if(e.target.id==='dep-canal'&&$('w-dpart')) $('w-dpart').className=(e.target.value==='Visite d\'un lycée'||S.depCat==='Stand / JPO')?'':'hide';
   if(e.target.id==='f-etape'){ var v=e.target.value, p0=find(S.cur); $('w-mt').className=(WONX.indexOf(v)>=0||Number(p0&&p0.montant)>0)?'':'hide'; $('w-raison').className=v==='Perdu'?'':'hide';
     $('et-hint').className='hint'+(p0&&v!==p0.etape?'':' hide'); }
   if(e.target.id==='f-rdv'||e.target.id==='f-heure') dlUpd('f'); if(e.target.id==='r-date'||e.target.id==='r-heure') dlUpd('r'); if(e.target.id==='r-tdate'||e.target.id==='r-theure') dlUpd('t');
