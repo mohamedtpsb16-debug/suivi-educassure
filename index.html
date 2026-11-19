@@ -240,6 +240,9 @@ header.mini .hhi .t{font-size:15px}
 .nmr .nm{min-width:0}
 .nmr .flag{font-size:11px;padding:2px 6px;margin-top:2px}
 .shead .sub{white-space:normal}
+.dw{position:relative;display:block}
+.dw .dx{position:absolute;right:36px;top:50%;transform:translateY(-50%);width:24px;height:24px;border-radius:50%;border:0;background:#E9EFF0;color:#5E7277;font-size:11px;font-weight:700;line-height:24px;padding:0;text-align:center}
+.lnk2{display:block;width:100%;margin-top:12px;border:0;background:none;color:var(--mut);font-size:13px;font-weight:500;text-decoration:underline;text-underline-offset:3px}
 .rbs{display:flex;gap:6px;flex:none}
 .rb{width:38px;height:38px;border-radius:50%;border:0;background:var(--teal-50);color:var(--teal);display:flex;align-items:center;justify-content:center;flex:none}
 .rb svg{width:18px;height:18px}
@@ -597,7 +600,7 @@ function replied(k){ var p=find(k);
 function save(){
   var p=find(S.cur), f={etape:val('f-etape'),montant:val('f-montant'),raison:val('f-raison'),notes:val('f-notes')};
   if(p.hasRdv) f.rdv=val('f-rdv');
-  if(p.hasHeure) f.heure=val('f-heure');
+  if(p.hasHeure) f.heure=f.rdv===''?'':val('f-heure');
   if(p.kind!=='Autres') f.resp=val('f-resp');
   var nl=val('f-last'), nr=Number(val('f-rel'));
   if(nl!==p.last || (nl && nr!==p.rel)){ f.last=nl; f.rel=nr; }
@@ -950,11 +953,12 @@ function partSheet(c){
     '<div class="two"><div>'+inp('stand','Tarif du stand (F)',x.stand,'number')+'</div><div>'+inp('reprise','Reprendre contact le',x.reprise,'date')+'</div></div>'+
     inp('offres','Offres de visibilité',x.offres)+'</details>'+
     '<label class="lbl">Notes</label><textarea class="in" id="p-notes"'+dis+'>'+esc(x.notes||'')+'</textarea>'+
-    (w?'<div class="savebar"><button class="btn-main" style="margin:0" id="pBtn" data-act="psave">'+(c?'Enregistrer':'Ajouter')+'</button></div>':'')+'</div>';
+    (w?'<div class="savebar"><button class="btn-main" style="margin:0" id="pBtn" data-act="psave">'+(c?'Enregistrer':'Ajouter')+'</button></div>':'')+
+    (w&&c&&(x.visite||x.rdv||x.next||x.tent||(x.etape&&x.etape!=='À visiter'))?'<button class="lnk2" data-act="preset">↺ Remettre à zéro (aucune action faite)</button>':'')+'</div>';
   var sh=$('sheet');
   sh.innerHTML='<div class="shead"><div class="grab"></div><div class="ctop"><div class="av '+(x.type==='Lycée'?'e':'a')+'" style="width:48px;height:48px;font-size:13px">'+esc(c||'+')+'</div>'+
-    '<div class="cinfo"><div class="nm" style="font-size:17px">'+esc(x.nom||'Nouveau partenaire')+'</div><div class="sub">'+esc([x.type,x.etape].filter(Boolean).join(' · '))+'</div></div></div>'+
-    (c&&x.tel?'<div class="qa"><a href="tel:'+esc(String(x.tel).replace(/[^0-9+]/g,''))+'">'+ICO.tel+'Appeler</a><a class="wa" href="'+waUrl(digits(x.tel).length===8?'226'+digits(x.tel):digits(x.tel))+'" target="_blank" rel="noopener">'+ICO.wa+'WhatsApp</a></div>':'')+'</div><div class="sbody">'+h+'</div>';
+    '<div class="cinfo"><div class="nm" style="font-size:17px">'+esc(x.nom||'Nouveau partenaire')+'</div><div class="sub">'+esc([x.type,x.etape].filter(Boolean).join(' · '))+'</div></div>'+
+    (c&&x.tel?'<div class="rbs"><a class="rb wa" href="'+waUrl(digits(x.tel).length===8?'226'+digits(x.tel):digits(x.tel))+'" target="_blank" rel="noopener" title="WhatsApp">'+ICO.wa+'</a><a class="rb" href="tel:'+esc(String(x.tel).replace(/[^0-9+]/g,''))+'" title="Appeler">'+ICO.tel+'</a></div>':'')+'</div></div><div class="sbody">'+h+'</div>';
   if(sh.className!=='sheet open'){ try{ history.pushState({ea:'sheet'},''); }catch(e){} }
   $('ov').className='ov open'; sh.className='sheet open';
 }
@@ -976,8 +980,10 @@ function partAct(c,t){
   try{ if(!(history.state&&history.state.ea==='sheet')) history.pushState({ea:'sheet'},''); }catch(e){}
 }
 function partActSave(){ var c=S.pact[0], t=S.pact[1], d={next:val('pa-next'),note:val('pa-note')}; if(t==='visite') d.etape=val('pa-etape'); else d.moyen=val('pa-moyen');
+  var x0=pfind(c), prev={etape:x0.etape||'',visite:x0.visite||'',rdv:x0.rdv||'',next:x0.next||'',tent:x0.tent||0,moyen:x0.moyen||'',notes:x0.notes||''};
   $('paBtn').disabled=true;
-  run('partnerAction',S.pin,c,t,d).then(function(r){ S.parts.list=r.list; store('ea_parts',JSON.stringify(S.parts)); closeSheet(); render(); toast((t==='visite'?'Visite':'Relance')+' notée ✓'); })
+  run('partnerAction',S.pin,c,t,d).then(function(r){ S.parts.list=r.list; store('ea_parts',JSON.stringify(S.parts)); closeSheet(); render();
+    toast((t==='visite'?'Visite':'Relance')+' notée ✓','Annuler',function(){ run('partnerAction',S.pin,c,'annule',{prev:prev}).then(function(r2){ S.parts.list=r2.list; store('ea_parts',JSON.stringify(S.parts)); render(); toast('Annulé ✓'); }).catch(err); }); })
     .catch(function(e){ var b=$('paBtn'); if(b) b.disabled=false; err(e); }); }
 
 /* ---------- Objectifs du plan (au 31 janvier) ---------- */
@@ -1048,6 +1054,12 @@ document.addEventListener('click',function(e){
   switch(a){
     case 'login': doLogin(); break;
     case 'reload': load(true); break;
+    case 'dclear': (function(){ var i=el.parentNode.querySelector('input'); i.value=''; i.dispatchEvent(new Event('input',{bubbles:true})); i.dispatchEvent(new Event('change',{bubbles:true})); dxSync(i); toast('Date effacée · pense à enregistrer'); })(); break;
+    case 'preset': (function(){ var x=pfind(S.pcur), m=$('modal');
+      m.innerHTML='<h3>Remettre à zéro ?</h3><div class="hint" style="margin:6px 0 0;color:var(--ink);font-size:14px">'+esc(x.nom)+' revient à « À visiter », comme si aucune action n\'avait été faite : la visite, le rendez-vous, les relances et la prochaine action sont effacés. Les notes et les fiches reçues sont gardées.</div>'+
+        '<div class="cact"><button class="b ghost" data-act="closeall">Retour</button><button class="b orange" id="prBtn" data-act="presetgo">Remettre à zéro</button></div>';
+      $('ov').className='ov open'; m.className='modal open'; })(); break;
+    case 'presetgo': $('prBtn').disabled=true; run('partnerAction',S.pin,S.pcur,'reset',{}).then(function(r){ S.parts.list=r.list; store('ea_parts',JSON.stringify(S.parts)); closeSheet(); render(); toast('Remis à « À visiter » ✓'); }).catch(function(e){ var b=$('prBtn'); if(b) b.disabled=false; err(e); }); break;
     case 'logout': logout(); break;
     case 'tab': tab(el.getAttribute('data-t')); break;
     case 'kind': S.kind=k; render(); break;
@@ -1104,7 +1116,7 @@ document.addEventListener('click',function(e){
     case 'testN': run('testNotif',S.pin).then(function(){ toast('Notification envoyée ✓'); }).catch(err); break;
   }
 });
-document.addEventListener('input',function(e){ if(e.target.id==='r-date'||e.target.id==='r-heure'){ rdvMsg(); dlUpd('r'); }
+document.addEventListener('input',function(e){ if(e.target.type==='date') dxSync(e.target); if(e.target.id==='r-date'||e.target.id==='r-heure'){ rdvMsg(); dlUpd('r'); }
   if(e.target.id==='f-rdv'||e.target.id==='f-heure') dlUpd('f'); if(e.target.id==='r-tdate'||e.target.id==='r-theure') dlUpd('t');
   if(e.target.id==='pq'){ S.pq=e.target.value; var ps=e.target.selectionStart; render(); var pq=$('pq'); pq.focus(); pq.setSelectionRange(ps,ps); }
   if(e.target.id==='q'){ S.q=e.target.value; var pos=e.target.selectionStart; render(); var q=$('q'); q.focus(); q.setSelectionRange(pos,pos); } });
@@ -1114,6 +1126,11 @@ document.addEventListener('change',function(e){ if(e.target.id==='fet'){ S.etape
     $('et-hint').className='hint'+(p0&&v!==p0.etape?'':' hide'); }
   if(e.target.id==='f-rdv'||e.target.id==='f-heure') dlUpd('f'); if(e.target.id==='r-date'||e.target.id==='r-heure') dlUpd('r'); if(e.target.id==='r-tdate'||e.target.id==='r-theure') dlUpd('t');
   if(e.target.id==='n-src'){ $('n-partw').className=/lycée|partenaire/i.test(e.target.value)?'':'hide'; if(!S.parts) loadParts(); } });
+function enhanceDates(root){ [].forEach.call(root.querySelectorAll('input[type=date]:not([data-x])'),function(i){ i.setAttribute('data-x','1'); if(i.disabled) return;
+  var w=document.createElement('span'); w.className='dw'; i.parentNode.insertBefore(w,i); w.appendChild(i);
+  var b=document.createElement('button'); b.type='button'; b.className='dx'+(i.value?'':' hide'); b.setAttribute('data-act','dclear'); b.setAttribute('title','Effacer la date'); b.textContent='✕'; w.appendChild(b); }); }
+try{ new MutationObserver(function(){ enhanceDates(document.body); }).observe(document.body,{childList:true,subtree:true}); }catch(e){}
+function dxSync(i){ var b=i.parentNode&&i.parentNode.className==='dw'?i.parentNode.querySelector('.dx'):null; if(b) b.className='dx'+(i.value?'':' hide'); }
 window.addEventListener('scroll',function(){ var hd=document.querySelector('header'); if(hd) hd.classList.toggle('mini',window.scrollY>40); },{passive:true});
 $('pin').addEventListener('keyup',function(e){ if(e.key==='Enter') doLogin(); });
 
