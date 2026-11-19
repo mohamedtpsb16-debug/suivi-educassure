@@ -78,6 +78,10 @@ main{padding:16px 14px calc(100px + env(safe-area-inset-bottom));max-width:640px
 .dl .ch.on{border-color:var(--vio);color:var(--vio);background:var(--vio-50)}
 .dl .ch.full{background:var(--or-50);border-color:#F6CBA6;color:#B35A14}
 .dl .warn{margin-top:7px;color:#B35A14}
+.dl .mr{display:flex;align-items:flex-start;gap:8px;margin-top:6px}
+.dl .ml{flex:none;width:86px;padding-top:9px;font-size:11.5px;color:var(--mut);white-space:nowrap}
+.dl .mr .ch{margin-top:4px}
+.dl .mr:not(.cur) .ch{opacity:.7}
 .flag.warn{background:var(--or-50);color:#B35A14}
 .cact{display:flex;gap:8px;margin-top:12px}
 .b{flex:1;border:0;border-radius:13px;padding:11px 10px;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:7px}
@@ -792,14 +796,14 @@ function rdvModal(t){
     h+='<div class="hint" style="margin:0">'+esc(p.nom)+' · '+esc(quand(p.rdv)+hh(p.heure))+'</div>'+
       '<label class="lbl">Le rendez-vous s\'est fait</label>'+modeSeg(S.rMode,'rfm')+
       (sui.length?'<label class="lbl">Et maintenant ?</label><div class="opts" style="grid-template-columns:1fr">'+sui.map(function(x){return '<button class="opt'+(x[0]===S.rEt?' on':'')+'" data-act="rfe" data-e="'+esc(x[0])+'">'+esc(x[1])+'</button>'}).join('')+'</div>':'<div class="hint" style="margin-top:10px">Inscription déjà payée : l\'étape reste « Inscrit et payé ».</div>')+
-      '<div id="r-tst" style="display:'+(nd?'block':'none')+'"><label class="lbl" id="r-tlbl">Date du test'+(nd===1?' (si déjà fixée)':'')+'</label><div class="two"><input class="in" type="date" id="r-tdate" value="'+(nd===2?td:'')+'"><input class="in" type="time" id="r-theure" value="10:00"></div><div class="dl" id="dl-t">'+(nd===2?dayLoad(td,'10:00',key(p)):'')+'</div></div>'+
+      '<div id="r-tst" style="display:'+(nd?'block':'none')+'"><label class="lbl" id="r-tlbl">Date du test'+(nd===1?' (si déjà fixée)':'')+'</label><div class="two"><input class="in" type="date" id="r-tdate" value="'+(nd===2?td:'')+'"><input class="in" type="time" id="r-theure" value="10:00"></div><div class="dl" id="dl-t">'+(nd===2?dayLoad(td,'10:00',key(p),S.rMode):'')+'</div></div>'+
       '<div id="r-won" style="display:'+(WONX.indexOf(S.rEt)>=0?'block':'none')+'"><label class="lbl">Montant encaissé (facultatif)</label><input class="in" type="number" inputmode="numeric" id="r-mt" placeholder="En F CFA" value="'+(p.montant||'')+'"></div>'+
       '<div id="r-lost" style="display:none"><label class="lbl">Raison de la perte</label><select class="sel" id="r-raison"><option value=""></option>'+S.data.lists.raisons.map(function(x){return '<option>'+esc(x)+'</option>'}).join('')+'</select></div>'+
       '<label class="lbl">Compte rendu (facultatif)</label><textarea class="in" id="r-note" style="min-height:70px" placeholder="Ex. : intéressé par la Chine, attend l\'avis des parents"></textarea>'+
       '<div class="cact"><button class="b ghost" data-act="closeall">Retour</button><button class="b pri" id="rBtn" data-act="rdvsave">Enregistrer</button></div>';
     m.innerHTML=h; hideOnlySheetKeep(); $('ov').className='ov open'; m.className='modal open'; return;
   }
-  if(t==='reporte') h+='<div class="hint" style="margin:0">Actuellement : '+esc(quand(p.rdv)+hh(p.heure))+'</div><label class="lbl">Nouvelle date et heure</label><div class="two"><input class="in" type="date" id="r-date" value="'+addDays(today(),1)+'"><input class="in" type="time" id="r-heure" value="'+esc(p.heure||'10:00')+'"></div><div class="dl" id="dl-r">'+dayLoad(addDays(today(),1),p.heure||'10:00',key(p))+'</div>'+
+  if(t==='reporte') h+='<div class="hint" style="margin:0">Actuellement : '+esc(quand(p.rdv)+hh(p.heure))+'</div><label class="lbl">Nouvelle date et heure</label><div class="two"><input class="in" type="date" id="r-date" value="'+addDays(today(),1)+'"><input class="in" type="time" id="r-heure" value="'+esc(p.heure||'10:00')+'"></div><div class="dl" id="dl-r">'+dayLoad(addDays(today(),1),p.heure||'10:00',key(p),S.rMode)+'</div>'+
     ((S.rType=(p.kind==='Formations'&&p.etape!=='Inscrit et payé')?rdvLab(p):'')?'<label class="lbl">Il s\'agit d\'un</label><div class="seg">'+[['Rendez-vous','🤝 Rendez-vous'],['Test','📝 Test de niveau']].map(function(x){return '<button class="'+(x[0]===S.rType?'on':'')+'" data-act="rft" data-m="'+x[0]+'">'+x[1]+'</button>'}).join('')+'</div>':'')+
     '<label class="lbl">Le rendez-vous se fera</label>'+modeSeg(S.rMode,'rfm');
   if(t==='absent') h+='<div class="hint" style="margin:0">La date est effacée et les relances reprennent pour reprogrammer.</div><label class="lbl">Le rappeler le</label><input class="in" type="date" id="r-cb" value="'+addDays(today(),1)+'">';
@@ -813,21 +817,24 @@ function rdvMsg(){ var p=find(S.cur), d=val('r-date'), hr=val('r-heure'), t=$('r
   t.value='Bonjour '+p.nom.trim()+', votre '+rdvNom(p,S.rType||undefined)+' avec Educ\'Assure est reporté à '+quand(d).replace(/^le /,'')+hh(hr)+(S.rMode==='En ligne'?', en ligne':'')+'. Merci de confirmer votre présence en répondant OUI.'+(S.rMode==='En ligne'?' Nous vous enverrons le lien de connexion juste avant.':''); }
 /* Rendez-vous déjà programmés pour un jour, pour la même offre ; 4 à la même heure = complet */
 var RDVMAX=4;
-function dayLoad(d,hr,excl){
+function dayLoad(d,hr,excl,mode){
   if(!d||!S.data) return '';
-  var c={}, n=0, kd=String(excl||'').split('|')[0], nm=kd==='Études'?['entretien','entretiens']:kd==='Formations'?['rendez-vous','rendez-vous']:['rendez-vous','rendez-vous'];
+  var kd=String(excl||'').split('|')[0], nm=kd==='Études'?['entretien','entretiens']:['rendez-vous','rendez-vous'], n=0;
+  var me=mode||((find(excl)||{}).mode)||'Présentiel', M={'Présentiel':{},'En ligne':{}};
   (S.data.kinds[kd]||[]).forEach(function(p){
-    if(p.rdv!==d||key(p)===excl||p.doublon==='Doublon') return; n++; var h=p.heure||''; c[h]=(c[h]||0)+1; });
+    if(p.rdv!==d||key(p)===excl||p.doublon==='Doublon') return; n++; var c=M[p.mode==='En ligne'?'En ligne':'Présentiel'], h=p.heure||''; c[h]=(c[h]||0)+1; });
   var j=d===today()?'Aujourd\'hui':quand(d).replace(/^(le|ce) /,''); j=j.charAt(0).toUpperCase()+j.slice(1);
   if(!n) return esc(j)+' : aucun '+nm[0]+' pour l\'instant.';
-  var hs=Object.keys(c).sort(function(a,b){ return (a||'99')<(b||'99')?-1:1; });
-  var out=esc(j)+' : '+n+' '+nm[n>1?1:0]+' déjà programmé'+(n>1?'s':'')+'<br>'+hs.map(function(h){
-    var full=c[h]>=RDVMAX, on=h&&h===hr;
-    return '<span class="ch'+(full?' full':'')+(on?' on':'')+'">'+(h?h.replace(':','h'):'sans heure')+' · '+c[h]+(full?' · complet':'')+'</span>'; }).join('');
-  if(hr&&c[hr]>=RDVMAX) out+='<div class="warn">⚠️ Déjà '+c[hr]+' '+nm[1]+' à '+hr.replace(':','h')+'. Choisis une autre heure si possible.</div>';
+  var row=function(md,lab){ var c=M[md], hs=Object.keys(c).sort(function(a,b){ return (a||'99')<(b||'99')?-1:1; });
+    if(!hs.length) return '';
+    return '<div class="mr'+(md===me?' cur':'')+'"><span class="ml">'+lab+'</span><span>'+hs.map(function(h){
+      var full=c[h]>=RDVMAX, on=md===me&&h&&h===hr;
+      return '<span class="ch'+(full?' full':'')+(on?' on':'')+'">'+(h?h.replace(':','h'):'sans heure')+' · '+c[h]+(full?' · complet':'')+'</span>'; }).join('')+'</span></div>'; };
+  var out=esc(j)+' : '+n+' '+nm[n>1?1:0]+' déjà programmé'+(n>1?'s':'')+row('Présentiel','🏢 Présentiel')+row('En ligne','💻 En ligne');
+  if(hr&&M[me][hr]>=RDVMAX) out+='<div class="warn">⚠️ Déjà '+M[me][hr]+' '+nm[1]+' '+(me==='En ligne'?'en ligne':'en présentiel')+' à '+hr.replace(':','h')+'. Choisis une autre heure si possible.</div>';
   return out;
 }
-function dlUpd(w){ var el=$('dl-'+w); if(!el) return; el.innerHTML=w==='f'?dayLoad(val('f-rdv'),val('f-heure'),S.cur):w==='t'?dayLoad(val('r-tdate'),val('r-theure'),S.cur):dayLoad(val('r-date'),val('r-heure'),S.cur); }
+function dlUpd(w){ var el=$('dl-'+w); if(!el) return; el.innerHTML=w==='f'?dayLoad(val('f-rdv'),val('f-heure'),S.cur):w==='t'?dayLoad(val('r-tdate'),val('r-theure'),S.cur,S.rMode):dayLoad(val('r-date'),val('r-heure'),S.cur,S.rMode); }
 /* Présentiel / En ligne */
 var SUITE={'Études':['Proposition envoyée','Dossier ouvert','En veille','Perdu'],'Autres':['En cours','Terminé','En veille','Perdu']};
 /* Suite possible après un rendez-vous : [étape, libellé, date du test (0 non, 1 facultative, 2 obligatoire)] */
@@ -1085,14 +1092,14 @@ document.addEventListener('click',function(e){
     case 'per': S.period=el.getAttribute('data-p'); render(); break;
     case 'copyT': try{ navigator.clipboard.writeText(S.data.ntfy).then(function(){toast('Nom copié ✓')},function(){toast(esc(S.data.ntfy))}); }catch(x){ toast(esc(S.data.ntfy)); } break;
     case 'rdvm': rdvModal(el.getAttribute('data-t')); break;
-    case 'rfm': S.rMode=el.getAttribute('data-m'); segOn(el); rdvMsg(); break;
+    case 'rfm': S.rMode=el.getAttribute('data-m'); segOn(el); rdvMsg(); dlUpd('r'); dlUpd('t'); break;
     case 'rft': S.rType=el.getAttribute('data-m'); segOn(el); rdvMsg(); break;
     case 'rfe': S.rEt=el.getAttribute('data-e'); [].forEach.call(el.parentNode.children,function(b){ b.className='opt'+(b===el?' on':''); });
       (function(){ var nd=S.rNeed[S.rEt]||0, b=$('r-tst'); if(!b) return; b.style.display=nd?'block':'none'; $('r-tlbl').textContent='Date du test'+(nd===1?' (si déjà fixée)':'');
         if(nd===2&&!val('r-tdate')) $('r-tdate').value=addDays(today(),1); dlUpd('t'); })();
       $('r-won').style.display=WONX.indexOf(S.rEt)>=0?'block':'none'; $('r-lost').style.display=S.rEt==='Perdu'?'block':'none'; break;
     case 'rmode': (function(){ var p=find(S.cur), md=el.getAttribute('data-m'); if((p.mode||'Présentiel')===md) return; segOn(el);
-      run('setRdvMode',S.pin,p.kind,p.row,p.nom,md).then(function(res){ replace(res.row); toast(md==='En ligne'?'RDV en ligne ✓':'RDV en présentiel ✓'); }).catch(err); })(); break;
+      run('setRdvMode',S.pin,p.kind,p.row,p.nom,md).then(function(res){ replace(res.row); dlUpd('f'); toast(md==='En ligne'?'RDV en ligne ✓':'RDV en présentiel ✓'); }).catch(err); })(); break;
     case 'rdvsave': rdvSave(); break;
     case 'reprog': reprog(k); break;
     case 'grp': grpStart(el.getAttribute('data-g')); break;
