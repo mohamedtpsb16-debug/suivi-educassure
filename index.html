@@ -749,20 +749,20 @@ function rdvModal(t){
 }
 function rdvMsg(){ var p=find(S.cur), d=val('r-date'), hr=val('r-heure'), t=$('r-msg'); if(!t||S.rdvT!=='reporte') return;
   t.value='Bonjour '+p.nom.trim()+', votre '+rdvNom(p)+' avec Educ\'Assure est reporté à '+quand(d).replace(/^le /,'')+hh(hr)+(S.rMode==='En ligne'?', en ligne':'')+'. Merci de confirmer votre présence en répondant OUI.'+(S.rMode==='En ligne'?' Nous vous enverrons le lien de connexion juste avant.':''); }
-/* Rendez-vous déjà programmés pour un jour (toutes offres) ; 4 à la même heure = complet */
+/* Rendez-vous déjà programmés pour un jour, pour la même offre ; 4 à la même heure = complet */
 var RDVMAX=4;
 function dayLoad(d,hr,excl){
   if(!d||!S.data) return '';
-  var c={}, n=0;
-  KINDS.forEach(function(k){ (S.data.kinds[k]||[]).forEach(function(p){
-    if(p.rdv!==d||key(p)===excl||p.doublon==='Doublon') return; n++; var h=p.heure||''; c[h]=(c[h]||0)+1; }); });
+  var c={}, n=0, kd=String(excl||'').split('|')[0], nm=kd==='Études'?['entretien','entretiens']:kd==='Formations'?['test','tests']:['rendez-vous','rendez-vous'];
+  (S.data.kinds[kd]||[]).forEach(function(p){
+    if(p.rdv!==d||key(p)===excl||p.doublon==='Doublon') return; n++; var h=p.heure||''; c[h]=(c[h]||0)+1; });
   var j=d===today()?'Aujourd\'hui':quand(d).replace(/^(le|ce) /,''); j=j.charAt(0).toUpperCase()+j.slice(1);
-  if(!n) return '📅 '+esc(j)+' : aucun rendez-vous pour l\'instant.';
+  if(!n) return '📅 '+esc(j)+' : aucun '+nm[0]+' pour l\'instant.';
   var hs=Object.keys(c).sort(function(a,b){ return (a||'99')<(b||'99')?-1:1; });
-  var out='📅 '+esc(j)+' : '+n+' rendez-vous déjà programmé'+(n>1?'s':'')+'<br>'+hs.map(function(h){
+  var out='📅 '+esc(j)+' : '+n+' '+nm[n>1?1:0]+' déjà programmé'+(n>1?'s':'')+'<br>'+hs.map(function(h){
     var full=c[h]>=RDVMAX, on=h&&h===hr;
     return '<span class="ch'+(full?' full':'')+(on?' on':'')+'">'+(h?h.replace(':','h'):'sans heure')+' · '+c[h]+(full?' · complet':'')+'</span>'; }).join('');
-  if(hr&&c[hr]>=RDVMAX) out+='<div class="warn">⚠️ Déjà '+c[hr]+' rendez-vous à '+hr.replace(':','h')+'. Choisis une autre heure si possible.</div>';
+  if(hr&&c[hr]>=RDVMAX) out+='<div class="warn">⚠️ Déjà '+c[hr]+' '+nm[1]+' à '+hr.replace(':','h')+'. Choisis une autre heure si possible.</div>';
   return out;
 }
 function dlUpd(w){ var el=$('dl-'+w); if(!el) return; el.innerHTML=w==='f'?dayLoad(val('f-rdv'),val('f-heure'),S.cur):dayLoad(val('r-date'),val('r-heure'),S.cur); }
