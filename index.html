@@ -78,6 +78,24 @@ main{padding:16px 14px calc(100px + env(safe-area-inset-bottom));max-width:640px
 .dl .ch.on{border-color:var(--vio);color:var(--vio);background:var(--vio-50)}
 .dl .ch.full{background:var(--or-50);border-color:#F6CBA6;color:#B35A14}
 .dl .warn{margin-top:7px;color:#B35A14}
+.dtop{display:flex;justify-content:space-between;align-items:flex-end;margin:10px 0 8px}
+.dtop b{display:block;font-family:Poppins,Inter,sans-serif;font-size:21px;font-weight:600}
+.dtop span{font-size:12.5px;color:var(--mut)}
+.dpct{font-family:Poppins,Inter,sans-serif;font-weight:600;color:var(--teal);font-size:15px}
+.dsep{height:1px;background:#EEF3F4;margin:14px 0 10px}
+.dlab{font-size:12.5px;font-weight:600;color:var(--mut);margin-bottom:4px}
+.drow{display:flex;align-items:baseline;gap:8px;font-size:13.5px;padding:6px 0}
+.drow span:first-child{flex:1;min-width:0}
+.drow .o{color:var(--mut);font-size:12px;white-space:nowrap}
+.drow b{min-width:62px;text-align:right;font-weight:600}
+.droi{display:flex;justify-content:space-between;gap:10px;font-size:13px;color:var(--mut);align-items:baseline}
+.droi b{color:#1E9E5A;font-weight:600;font-size:13.5px}
+.dli{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #F0F4F5}
+.dli:last-child{border-bottom:0}
+.dli .e{width:34px;height:34px;border-radius:11px;background:var(--teal-50);display:flex;align-items:center;justify-content:center;flex:none;font-size:15px}
+.dli .t{flex:1;min-width:0}.dli .t div:first-child{font-size:14px;font-weight:600}
+.dli .x{border:0;background:#F1F4F5;color:#5E7277;width:28px;height:28px;border-radius:50%;font-size:11px;font-weight:700;flex:none}
+.dmo{font-size:12px;font-weight:600;color:var(--mut);margin:14px 0 2px;display:flex;justify-content:space-between}
 .dl .mr{display:flex;align-items:flex-start;gap:8px;margin-top:6px}
 .dl .ml{flex:none;width:86px;padding-top:9px;font-size:11.5px;color:var(--mut);white-space:nowrap}
 .dl .mr .ch{margin-top:4px}
@@ -322,6 +340,7 @@ var ICS={cal:'<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M1
   mega:'<path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z"/><path d="M15 9a4 4 0 0 1 0 6M18 6a8 8 0 0 1 0 12"/>',
   users:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/>',
   chart:'<path d="M5 20V11M12 20V5M19 20v-6"/>', gear:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>',
+  wallet:'<rect x="3" y="6" width="18" height="14" rx="3"/><path d="M3 10h18"/><path d="M16 15h2"/><path d="M6 6V5a2 2 0 0 1 2-2h9"/>',
   school:'<path d="M3 21h18M5 21V10l7-5 7 5v11M10 21v-5h4v5"/>', link:'<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>'};
 function IC(n){ return '<svg class="si" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+(ICS[n]||'')+'</svg>'; }
 var GROUPS=[
@@ -722,6 +741,8 @@ function loadDash(){
   if(!S.dash){ try{ S.dash=JSON.parse(stored('ea_dash')||'null'); }catch(e){} }
   run('getDashboard',S.pin).then(function(d){ S.dash=d; store('ea_dash',JSON.stringify(d)); if(S.tab==='dash') render(); }).catch(err);
   run('getTeam',S.pin).then(function(t){ S.team=t; if(S.tab==='dash') render(); }).catch(function(){});
+  if(!S.dep){ try{ S.dep=JSON.parse(stored('ea_dep')||'null'); }catch(e){} }
+  run('getDepenses',S.pin).then(function(d){ S.dep=d; store('ea_dep',JSON.stringify(d)); if(S.tab==='dash') render(); }).catch(function(){});
 }
 function num(v){ return parseFloat(String(v).replace(/[\s  ]/g,'').replace(',','.'))||0; }
 function ring(v,obj,col){ var pct=obj?Math.min(1,v/obj):0, r=19, c=2*Math.PI*r;
@@ -748,6 +769,7 @@ function renderDash(list){
     tile('fiches reçues',plan.length,600,null,attendu(PLAN.fiches.pts,t))+tile('dossiers ouverts',doss,15,'10-15',attendu(PLAN.dossiers.pts,t))+
     tile('inscrits anglais',ins('Anglais'),40)+tile('inscrits japonais',ins('Japonais'),15)+'</div>'+
     sl('📅 Entretiens programmés',ent,90)+sl('🏫 Lycées visités',lyc,30)+'</div>';
+  h+=depBox(list);
   // Sources
   var SR={}; list.forEach(function(p){ var k=p.part?'🏫 '+partName(p.part):((p.details.filter(function(d){return d[0]==='Source'})[0]||[])[1]||'Non renseignée'); k=k.replace(/ · [LP]\d+.*$/,'').replace('Publicité Facebook ou Instagram','Publicité Facebook / Insta');
     var o=SR[k]||(SR[k]={n:0,m:0}); o.n++; o.m+=Number(p.montant)||0; });
@@ -993,6 +1015,74 @@ function partActSave(){ var c=S.pact[0], t=S.pact[1], d={next:val('pa-next'),not
     toast((t==='visite'?'Visite':'Relance')+' notée ✓','Annuler',function(){ run('partnerAction',S.pin,c,'annule',{prev:prev}).then(function(r2){ S.parts.list=r2.list; store('ea_parts',JSON.stringify(S.parts)); render(); toast('Annulé ✓'); }).catch(err); }); })
     .catch(function(e){ var b=$('paBtn'); if(b) b.disabled=false; err(e); }); }
 
+/* ---------- Dépenses (F CFA) ---------- */
+var BUDGET_PLAN=150000;
+var DEPCAT=[['Publicité','📣'],['Impression','🖨️'],['Transport','🚕'],['Stand / JPO','🏫'],['Goodies','🎁'],['Autre','⋯']];
+var CANAUX=['Publicité Facebook ou Instagram','Facebook','TikTok','Visite d\'un lycée','Recommandation','Autre'];
+var CANL={'Publicité Facebook ou Instagram':'Pub Facebook / Instagram','Facebook':'Page Facebook','Visite d\'un lycée':'Lycées (visites, flyers, stands)'};
+function catIc(c){ var x=DEPCAT.filter(function(d){return d[0]===c})[0]; return x?x[1]:'⋯'; }
+function srcOf(p){ return ((p.details.filter(function(d){return d[0]==='Source'})[0]||[])[1])||''; }
+function depBox(list){
+  var D=S.dep, h='<div class="box"><h3 class="st">'+IC('wallet')+'Budget et dépenses</h3>', cd=canSend();
+  if(!D) return h+'<div class="hint">Chargement…</div></div>';
+  var P=D.filter(function(d){return d.date>=PLAN.debut}), inP=P.filter(function(d){return d.plan}), hors=P.filter(function(d){return !d.plan});
+  if(!P.length) return h+'<div class="hint" style="margin:6px 0 0">Aucune dépense notée pour l\'instant. Note chaque dépense (pub, impressions, transport…) pour voir ce que coûte chaque fiche.</div>'+
+    (cd?'<div class="cact"><button class="b soft sm" data-act="depnew">+ Ajouter une dépense</button></div>':'')+'</div>';
+  var sum=function(a){ return a.reduce(function(x,d){return x+d.m},0); }, tot=sum(inP), hs=sum(hors), ym=today().slice(0,7), mo=sum(P.filter(function(d){return d.date.slice(0,7)===ym}));
+  var fiches=list.filter(function(p){return (p.date||'')>=PLAN.debut}), enc=fiches.reduce(function(a,p){return a+(Number(p.montant)||0)},0);
+  var C={}; P.forEach(function(d){ if(d.canal) C[d.canal]=(C[d.canal]||0)+d.m; });
+  var nF=function(c){ return fiches.filter(function(p){ var s0=srcOf(p); return s0===c||(c==='Visite d\'un lycée'&&p.part); }).length; };
+  var pct=Math.round(tot/BUDGET_PLAN*100), K=Object.keys(C).sort(function(a,b){return C[b]-C[a]});
+  h+='<div class="dtop"><div><b>'+fmtF(tot)+'</b><span>dépensés sur '+fmtF(BUDGET_PLAN)+'</span></div><div class="dpct">'+pct+' %</div></div>'+
+    '<div class="sbar" style="height:8px"><i style="width:'+Math.min(100,pct)+'%'+(pct>100?';background:var(--or)':'')+'"></i></div>'+
+    '<div class="sline" style="margin-top:8px;color:var(--mut)"><span>Ce mois-ci</span><span>'+fmtF(mo)+'</span></div>'+
+    (hs?'<div class="sline" style="margin-top:4px;color:var(--mut)"><span>Hors budget du plan</span><span>'+fmtF(hs)+'</span></div>':'')+
+    (K.length?'<div class="dsep"></div><div class="dlab">Coût par fiche reçue</div>'+K.map(function(k){ var n=nF(k);
+      return '<div class="drow"><span>'+esc(CANL[k]||k)+'</span><span class="o">'+fmtF(C[k])+' · '+n+' fiche'+(n>1?'s':'')+'</span><b>'+(n?fmtF(Math.round(C[k]/n)):'—')+'</b></div>'; }).join(''):'')+
+    (enc?'<div class="dsep"></div><div class="droi"><span>Encaissé '+fmtF(enc)+'</span><b>1 F dépensé → '+String((enc/(tot+hs)).toFixed(1)).replace('.',',')+' F encaissés</b></div>':'')+
+    '<div class="cact">'+(cd?'<button class="b soft sm" data-act="depnew">+ Ajouter une dépense</button>':'')+'<button class="b ghost sm" data-act="deplist">Voir tout ('+D.length+')</button></div></div>';
+  return h;
+}
+function depModal(){
+  var m=$('modal'); S.depCat='Publicité';
+  m.innerHTML='<h3>Nouvelle dépense</h3>'+
+    '<div class="two" style="margin-top:12px"><div><label class="lbl" style="margin-top:0">Montant (F CFA)</label><input class="in" id="dep-m" inputmode="numeric" placeholder="Ex. : 15 000"></div><div><label class="lbl" style="margin-top:0">Date</label><input class="in" type="date" id="dep-date" value="'+today()+'"></div></div>'+
+    '<label class="lbl">Type de dépense</label><div class="opts" style="grid-template-columns:1fr 1fr 1fr;margin-top:0;gap:6px">'+DEPCAT.map(function(c){return '<button class="opt'+(c[0]===S.depCat?' on':'')+'" data-act="depcat" data-c="'+esc(c[0])+'" style="padding:10px 6px;text-align:center;font-size:13px">'+c[1]+' '+esc(c[0])+'</button>'}).join('')+'</div>'+
+    '<label class="lbl">Elle sert à attirer des prospects par</label><select class="sel" id="dep-canal">'+CANAUX.map(function(x){return '<option value="'+esc(x)+'">'+esc(CANL[x]||x)+'</option>'}).join('')+'<option value="">Aucun canal précis</option></select>'+
+    '<label class="chk" style="margin-top:12px"><input type="checkbox" id="dep-plan" checked> Comptée dans le budget du plan ('+fmtF(BUDGET_PLAN)+')</label>'+
+    '<label class="lbl">Note (facultatif)</label><input class="in" id="dep-note" placeholder="Ex. : 200 flyers pour les lycées">'+
+    '<div class="cact"><button class="b ghost" data-act="closeall">Annuler</button><button class="b pri" id="depBtn" data-act="depsave">Enregistrer</button></div>';
+  $('ov').className='ov open'; m.className='modal open';
+  try{ if(!(history.state&&history.state.ea==='sheet')) history.pushState({ea:'sheet'},''); }catch(e){}
+}
+function depSave(){
+  var d={m:val('dep-m'),date:val('dep-date'),cat:S.depCat,canal:val('dep-canal'),plan:$('dep-plan').checked,note:val('dep-note')};
+  if(!Number(String(d.m).replace(/[^0-9]/g,''))){ toast('Indique le montant.'); return; }
+  $('depBtn').disabled=true;
+  run('addDepense',S.pin,d).then(function(r){ S.dep=r; store('ea_dep',JSON.stringify(r)); closeSheet(); render(); toast('Dépense notée ✓'); })
+    .catch(function(e){ var b=$('depBtn'); if(b) b.disabled=false; err(e); });
+}
+function depList(){
+  var D=S.dep||[], cd=canSend(), by={}, sh=$('sheet');
+  D.forEach(function(d){ (by[d.date.slice(0,7)]=by[d.date.slice(0,7)]||[]).push(d); });
+  var h=Object.keys(by).sort().reverse().map(function(k){ var L=by[k], t=L.reduce(function(a,d){return a+d.m},0);
+    return '<div class="dmo"><span>'+MOISL[Number(k.slice(5))-1].replace(/^./,function(c){return c.toUpperCase()})+' '+k.slice(0,4)+'</span><span>'+fmtF(t)+'</span></div>'+
+      L.map(function(d){ return '<div class="dli"><div class="e">'+catIc(d.cat)+'</div><div class="t"><div>'+fmtF(d.m)+(d.plan?'':' <span class="flag warn" style="font-size:10.5px">hors plan</span>')+'</div>'+
+        '<div class="sub">'+esc([fds(d.date),d.cat,d.canal?(CANL[d.canal]||d.canal):'',d.note].filter(Boolean).join(' · '))+'</div></div>'+
+        (cd?'<button class="x" data-act="depdel" data-id="'+esc(d.id)+'" title="Supprimer">✕</button>':'')+'</div>'; }).join(''); }).join('');
+  sh.innerHTML='<div class="shead"><div class="grab"></div><div class="ctop"><div class="av e" style="width:48px;height:48px">'+IC('wallet').replace('class="si"','class="si" style="width:22px;height:22px"')+'</div>'+
+    '<div class="cinfo"><div class="nm" style="font-size:17px">Dépenses</div><div class="sub">'+D.length+' dépense'+(D.length>1?'s':'')+' · '+fmtF(D.reduce(function(a,d){return a+d.m},0))+'</div></div>'+
+    (cd?'<div class="rbs"><button class="rb" data-act="depnew" title="Ajouter">+</button></div>':'')+'</div></div>'+
+    '<div class="sbody"><div class="box" style="padding-top:4px">'+(h||'<div class="empty">Aucune dépense.</div>')+'</div></div>';
+  if(sh.className!=='sheet open'){ try{ history.pushState({ea:'sheet'},''); }catch(e){} }
+  $('ov').className='ov open'; sh.className='sheet open';
+}
+function depDel(id){
+  var d=(S.dep||[]).filter(function(x){return x.id===id})[0]; if(!d) return;
+  run('delDepense',S.pin,id).then(function(r){ S.dep=r; store('ea_dep',JSON.stringify(r)); depList(); render();
+    toast('Dépense supprimée','Annuler',function(){ run('addDepense',S.pin,{m:d.m,date:d.date,cat:d.cat,canal:d.canal,plan:d.plan,note:d.note}).then(function(r2){ S.dep=r2; store('ea_dep',JSON.stringify(r2)); if($('sheet').className==='sheet open') depList(); render(); toast('Rétablie ✓'); }).catch(err); }); }).catch(err);
+}
+
 /* ---------- Objectifs du plan (au 31 janvier) ---------- */
 var PLAN={debut:'2026-11-16',fin:'2027-01-31',
   fiches:{obj:600,pts:[['2026-11-22',40],['2026-11-29',100],['2026-12-06',170],['2027-01-24',550],['2027-01-31',600]]},
@@ -1034,6 +1124,11 @@ function bilan(du,au){
       '<div class="k4"><div><b>'+sum('fiches')+'</b>fiches reçues</div><div><b>'+sum('rdv')+'</b>entretiens et tests'+(b.journal&&b.journal['RDV réalisé']?'<br><small>dont '+b.journal['RDV réalisé']+' réalisé'+(b.journal['RDV réalisé']>1?'s':'')+'</small>':'')+'</div><div><b>'+sum('gagnes')+'</b>dossiers / inscriptions</div><div><b style="font-size:16px">'+fmtF(sum('encaisse'))+'</b>encaissé</div></div>'+
       '<h2>Résultats par offre</h2><table>'+th(['Offre','Fiches','RDV','Gagnés','Perdus','Encaissé'])+Object.keys(O).map(function(k){var o=O[k];return tr([lab[k]||k,o.fiches,o.rdv,o.gagnes,o.perdus,fmtF(o.encaisse)]);}).join('')+'</table>'+
       '<h2>D\'où viennent les prospects</h2><table>'+th(['Source','Fiches','Gagnés','Encaissé'])+src.map(function(k){var o=b.sources[k];return tr([esc(k),o.fiches,o.gagnes,fmtF(o.encaisse)]);}).join('')+'</table>'+
+      (b.depenses&&(b.depenses.plan||b.depenses.hors)?'<h2>Budget et dépenses</h2><table>'+th(['Type de dépense','Montant'])+Object.keys(b.depenses.types).sort(function(a,c){return b.depenses.types[c]-b.depenses.types[a]}).map(function(k){return tr([esc(k),fmtF(b.depenses.types[k])]);}).join('')+
+        tr(['<b>Total sur la période</b>','<b>'+fmtF(b.depenses.plan+b.depenses.hors)+'</b>'])+'</table>'+
+        '<div style="margin-top:6px">Dont hors budget du plan : '+fmtF(b.depenses.hors)+' · Budget du plan utilisé depuis le 16 nov. : '+fmtF(b.depenses.totalPlan)+' sur '+fmtF(BUDGET_PLAN)+'</div>'+
+        (Object.keys(b.depenses.canaux).length?'<table style="margin-top:8px">'+th(['Canal','Dépensé','Fiches','Coût par fiche'])+Object.keys(b.depenses.canaux).map(function(k){ var n=(b.sources[k]||{}).fiches||0, v=b.depenses.canaux[k];
+          return tr([esc(CANL[k]||k),fmtF(v),n,n?fmtF(Math.round(v/n)):'—']); }).join('')+'</table>':''):'')+
       '<h2>Lycées et partenaires</h2><div>'+(b.lycees.visites||0)+' visite'+((b.lycees.visites||0)>1?'s':'')+' sur la période · '+(b.lycees.visitesTotal||0)+' lycée(s) visité(s) sur 30 depuis le début · '+(b.lycees.accords||0)+' partenariat(s) accepté(s) · '+(b.lycees.stands||0)+' journée(s) portes ouvertes</div>'+
       (par.length?'<table style="margin-top:8px">'+th(['Partenaire','Fiches (période)','Gagnés','Encaissé'])+par.map(function(c){var q=b.partenaires[c];return tr([esc(c+' · '+(q.nom||'')),q.fiches,q.gagnes,fmtF(q.encaisse)]);}).join('')+'</table>':'')+
       '<h2>Activité de l\'équipe</h2><table>'+th(['Personne','Messages','Appels','RDV fixés','Visites / relances partenaires'])+eq.map(function(n){var e=b.equipe[n];return tr([esc(n),e.messages,e.appels,e.rdv,e.visites]);}).join('')+'</table>'+
@@ -1061,6 +1156,11 @@ document.addEventListener('click',function(e){
   switch(a){
     case 'login': doLogin(); break;
     case 'reload': load(true); break;
+    case 'depnew': hideOnlySheetKeep(); depModal(); break;
+    case 'depcat': S.depCat=el.getAttribute('data-c'); [].forEach.call(el.parentNode.children,function(b){ b.className='opt'+(b===el?' on':''); }); if(S.depCat==='Stand / JPO'){ $('dep-plan').checked=false; $('dep-canal').value='Visite d\'un lycée'; } break;
+    case 'depsave': depSave(); break;
+    case 'deplist': depList(); break;
+    case 'depdel': depDel(el.getAttribute('data-id')); break;
     case 'dclear': (function(){ var i=el.parentNode.querySelector('input'); i.value=''; i.dispatchEvent(new Event('input',{bubbles:true})); i.dispatchEvent(new Event('change',{bubbles:true})); dxSync(i); toast('Date effacée · pense à enregistrer'); })(); break;
     case 'preset': (function(){ var x=pfind(S.pcur), m=$('modal');
       m.innerHTML='<h3>Remettre à zéro ?</h3><div class="hint" style="margin:6px 0 0;color:var(--ink);font-size:14px">'+esc(x.nom)+' revient à « À visiter », comme si aucune action n\'avait été faite : la visite, le rendez-vous, les relances et la prochaine action sont effacés. Les notes et les fiches reçues sont gardées.</div>'+
