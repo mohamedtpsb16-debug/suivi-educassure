@@ -298,7 +298,10 @@ header.mini .hhi .t{font-size:15px}
 .crow .av{width:38px;height:38px;border-radius:12px;font-size:13px}
 .nmr{display:flex;align-items:center;gap:6px;min-width:0}
 .nmr .nm{min-width:0}
-.nmr .flag{font-size:11px;padding:2px 6px;margin-top:2px}
+.nmr .flag{font-size:11px;padding:2px 6px;margin-top:2px;flex:none}
+.ctop .flag+.flag{margin-left:4px}
+.fls{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex:none}
+.fls .flag+.flag{margin-left:0}
 .shead .sub{white-space:normal}
 .dw{position:relative;display:block}
 .dw .dx{position:absolute;right:36px;top:50%;transform:translateY(-50%);width:24px;height:24px;border-radius:50%;border:0;background:#E9EFF0;color:#5E7277;font-size:11px;font-weight:700;line-height:24px;padding:0;text-align:center}
@@ -670,9 +673,12 @@ function card(p,g){
   var flags='';
   if(S._ag && p.rdv){ var dj=p.rdv===today()?'Auj.':p.rdv===addDays(today(),1)?'Demain':fds(p.rdv);
     flags='<span class="flag rdv">'+dj+(p.heure?' · '+p.heure.replace(':','h'):'')+(p.mode==='En ligne'?' · 💻':'')+'</span>'; }
-  else if(p.prio==='PRIORITÉ') flags+='<span class="flag hot">🔥 Priorité</span>';
-  else if(p.rdv && p.rdv>=today()) flags+='<span class="flag rdv">'+fds(p.rdv)+(p.heure?' · '+p.heure.replace(':','h'):'')+(p.mode==='En ligne'?' · 💻 en ligne':'')+'</span>';
-  else if(p.noRdv) flags+='<span class="flag warn">Date RDV ?</span>';
+  else {
+    var fr=p.rdv && p.rdv>=today() ? '<span class="flag rdv">'+fds(p.rdv)+(p.heure?' · '+p.heure.replace(':','h'):'')+(p.mode==='En ligne'?' · 💻':'')+'</span>' : p.noRdv ? '<span class="flag warn">Date RDV ?</span>' : '';
+    // Priorité + date de RDV : les deux restent visibles (la priorité devient une petite flamme)
+    if(p.prio==='PRIORITÉ') flags+='<span class="flag hot"'+(fr?' title="Priorité"':'')+'>🔥'+(fr?'':' Priorité')+'</span>';
+    flags+=fr;
+  }
   if(p.numBad && !isClosed(p)) flags='<span class="flag hot">📵 Numéro ?</span>';
   var act='';
   if(g && canWrite()){
@@ -690,7 +696,7 @@ function card(p,g){
     '<div class="cinfo"><div class="nm">'+esc(p.nom)+'</div><div class="nmr">'+flags+'<div class="sub">'+esc(sub.join(' · '))+'</div></div></div></div>'+
     (canSend()?'<div class="rbs"><a class="rb wa" href="'+waUrl(p.num)+'" target="_blank" rel="noopener" title="WhatsApp">'+ICO.wa+'</a><a class="rb" href="tel:+'+esc(p.num)+'" data-act="call" data-k="'+k+'" title="Appeler">'+ICO.tel+'</a></div>':'')+'</div>';
   return '<div class="card"><div class="ctop" data-act="open" data-k="'+k+'"><div class="av '+AV[p.kind]+'">'+esc(initials(p.nom))+'</div>'+
-    '<div class="cinfo"><div class="nm">'+esc(p.nom)+'</div><div class="sub">'+esc(sub.join(' · '))+(g&&g.id==='rel'?' · relance '+(p.rel+1)+'/'+p.maxRel:'')+'</div></div>'+flags+'</div>'+
+    '<div class="cinfo"><div class="nm">'+esc(p.nom)+'</div><div class="sub">'+esc(sub.join(' · '))+(g&&g.id==='rel'?' · relance '+(p.rel+1)+'/'+p.maxRel:'')+'</div></div>'+(flags?'<span class="fls">'+flags+'</span>':'')+'</div>'+
     (act?'<div class="cact">'+act+'<button class="b ghost" data-act="open" data-k="'+k+'">Fiche</button></div>':'')+'</div>';
 }
 
