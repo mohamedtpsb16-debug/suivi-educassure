@@ -79,6 +79,27 @@ main{padding:16px 14px calc(100px + env(safe-area-inset-bottom));max-width:640px
 .dl .ch.full{background:var(--or-50);border-color:#F6CBA6;color:#B35A14}
 .dl .warn{margin-top:7px;color:#B35A14}
 .chips.mini{padding:0 0 10px;gap:6px;flex-wrap:nowrap;overflow-x:auto}
+.agbox{padding:14px 14px 6px}
+.aghd{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.aghd h3{margin:0}
+.agn{font-family:Inter,sans-serif;font-size:12px;font-weight:600;color:var(--mut);background:#F1F5F6;border-radius:20px;padding:2px 8px;margin-left:2px}
+.agms{display:flex;gap:6px}
+.agm{width:32px;height:32px;border-radius:10px;border:1px solid var(--line);background:#fff;font-size:14px;line-height:1;opacity:.6;transition:all .15s ease}
+.agm.on{opacity:1;background:var(--teal-50);border-color:var(--teal)}
+.agseg{margin:12px 0 4px}
+.agday{font-size:11.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--mut);margin:14px 0 2px}
+.agr{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #F0F4F5}
+.agr:last-of-type{border-bottom:0}
+.agt{width:62px;flex:none;cursor:pointer}
+.agt b{display:block;font-family:Poppins,Inter,sans-serif;font-size:15px;font-weight:600;color:var(--teal)}
+.agt span{font-size:10.5px;color:var(--mut);white-space:nowrap}
+.agi{flex:1;min-width:0;cursor:pointer}
+.agi .nm{font-size:14.5px}
+.agb{flex:none;display:inline-flex;align-items:center;gap:6px;padding:7px 11px;border-radius:20px;background:#E8F7EE;color:#178A4C;font-size:12.5px;font-weight:600;text-decoration:none}
+.agb svg{width:15px;height:15px}
+.agc{flex:none;color:#B8C6C9;font-size:20px;padding:0 4px}
+.agmore{display:block;width:100%;border:0;background:none;color:var(--teal);font-size:13px;font-weight:600;padding:10px 0 8px}
+.agempty{font-size:13px;color:var(--mut);padding:14px 0 12px}
 .chip.sm{padding:6px 11px;font-size:12.5px}
 .chip.sm i{font-size:11px}
 .csep{width:1px;flex:none;background:var(--line);margin:4px 2px}
@@ -211,7 +232,7 @@ nav .dot b{position:absolute;top:-4px;right:-10px;background:var(--or);color:#ff
 .doc .k4 b{display:block;font-family:Poppins,Inter,sans-serif;font-size:20px;color:var(--teal-d)}.doc .foot{margin-top:22px;font-size:11px;color:var(--mut);border-top:1px solid #E8EFF0;padding-top:8px}
 @media print{body>*:not(#print){display:none!important}#print{position:static;padding:0}.pbar{display:none}@page{margin:14mm}}
 /* Retour visuel au toucher : léger rebond */
-.b,.btn-main,.chip,.opt,.more,.qa a,.qa button,.tabs button,.seg button,nav button,.ibtn,.tpl button,.lnk,.rb{transition:transform .12s ease}
+.b,.btn-main,.chip,.opt,.more,.qa a,.qa button,.tabs button,.seg button,nav button,.ibtn,.tpl button,.lnk,.rb,.agb,.agm{transition:transform .12s ease}
 .b:active,.btn-main:active,.chip:active,.opt:active,.more:active,.qa a:active,.qa button:active,.tabs button:active,.seg button:active,nav button:active,.ibtn:active,.tpl button:active,.rb:active{transform:scale(.95)}
 .tap{animation:tap .32s ease}
 @keyframes tap{0%{transform:scale(1)}35%{transform:scale(.93)}70%{transform:scale(1.04)}100%{transform:scale(1)}}
@@ -481,16 +502,20 @@ function agenda(g){
   if(!A.length) return '';
   var af=S.af||'tous', am=S.am||'', md=function(p){ return p.mode==='En ligne'?'En ligne':'Présentiel'; };
   var L=A.filter(function(p){ return (af==='tous'||(af==='auj'&&p.rdv===t)||(af==='dem'&&p.rdv===dm))&&(!am||md(p)===am); });
-  var nA=A.filter(function(p){return p.rdv===t}).length, nD=A.filter(function(p){return p.rdv===dm}).length;
-  var ch=function(act,v,cur,lab,n){ return '<button class="chip sm'+(cur===v?' on':'')+'" data-act="'+act+'" data-v="'+v+'">'+lab+(n!==undefined?'<i>'+n+'</i>':'')+'</button>'; };
-  var h='<div class="grp"><span class="ttl">'+IC(g.ic)+'Rendez-vous</span><span class="n">'+A.length+'</span></div>'+
-    '<div class="chips mini">'+ch('agf','tous',af,'Tous')+ch('agf','auj',af,'Aujourd\'hui',nA)+ch('agf','dem',af,'Demain',nD)+'<span class="csep"></span>'+
-      ch('agm','Présentiel',am,'🏢')+ch('agm','En ligne',am,'💻')+'</div>';
-  if(!L.length) return h+'<div class="grp-hint" style="margin:2px 2px 14px">Aucun rendez-vous pour ce filtre.</div>';
-  var lim=S.agAll?L.length:6;
-  S._ag=true; try{ h+=L.slice(0,lim).map(function(p){ return groupOf(p)==='rdv'?card(p,g):card(p,null); }).join(''); } finally { S._ag=false; }
-  if(L.length>lim) h+='<button class="more" data-act="agall" style="margin-bottom:14px">Voir les '+(L.length-lim)+' autres</button>';
-  return h;
+  var seg='<div class="seg sm agseg">'+[['tous','Tous'],['auj','Aujourd\'hui'],['dem','Demain']].map(function(x){ return '<button class="'+(af===x[0]?'on':'')+'" data-act="agf" data-v="'+x[0]+'">'+x[1]+'</button>'; }).join('')+'</div>';
+  var mt=function(v,ic,lab){ return '<button class="agm'+(am===v?' on':'')+'" data-act="agm" data-v="'+v+'" title="'+lab+'">'+ic+'</button>'; };
+  var h='<div class="box agbox"><div class="aghd"><h3 class="st">'+IC('cal')+'Rendez-vous <span class="agn">'+A.length+'</span></h3><div class="agms">'+mt('Présentiel','🏢','Présentiel')+mt('En ligne','💻','En ligne')+'</div></div>'+seg;
+  if(!L.length) return h+'<div class="agempty">Aucun rendez-vous pour ce filtre.</div></div>';
+  var lim=S.agAll?L.length:6, day='';
+  L.slice(0,lim).forEach(function(p){
+    if(p.rdv!==day){ day=p.rdv; var j=day===t?'Aujourd\'hui':day===dm?'Demain':quand(day).replace(/^(le|ce) /,''); h+='<div class="agday">'+esc(j.charAt(0).toUpperCase()+j.slice(1))+'</div>'; }
+    var k=key(p), rap=groupOf(p)==='rdv'&&p.msg&&canSend();
+    h+='<div class="agr"><div class="agt" data-act="open" data-k="'+k+'"><b>'+(p.heure?p.heure.replace(':','h'):'—')+'</b><span>'+(p.mode==='En ligne'?'💻 en ligne':'🏢 sur place')+'</span></div>'+
+      '<div class="agi" data-act="open" data-k="'+k+'"><div class="nm">'+esc(p.nom)+'</div><div class="sub">'+ICON[p.kind]+' '+esc(rdvLab(p))+(mainDetail(p)?' · '+esc(mainDetail(p)):'')+'</div></div>'+
+      (rap?'<a class="agb" href="'+waUrl(p.num,p.msg)+'" target="_blank" rel="noopener" data-act="sent" data-k="'+k+'">'+ICO.wa+'Rappeler</a>':'<span class="agc">›</span>')+'</div>';
+  });
+  if(L.length>lim) h+='<button class="agmore" data-act="agall">Voir les '+(L.length-lim)+' autres</button>';
+  return h+'</div>';
 }
 function renderToday(list,todo){
   setChips(todo);
