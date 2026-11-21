@@ -78,6 +78,10 @@ main{padding:16px 14px calc(100px + env(safe-area-inset-bottom));max-width:640px
 .dl .ch.on{border-color:var(--vio);color:var(--vio);background:var(--vio-50)}
 .dl .ch.full{background:var(--or-50);border-color:#F6CBA6;color:#B35A14}
 .dl .warn{margin-top:7px;color:#B35A14}
+.chips.mini{padding:0 0 10px;gap:6px;flex-wrap:nowrap;overflow-x:auto}
+.chip.sm{padding:6px 11px;font-size:12.5px}
+.chip.sm i{font-size:11px}
+.csep{width:1px;flex:none;background:var(--line);margin:4px 2px}
 .dtop{display:flex;justify-content:space-between;align-items:flex-end;margin:10px 0 8px}
 .dtop b{display:block;font-family:Poppins,Inter,sans-serif;font-size:21px;font-weight:600}
 .dtop span{font-size:12.5px;color:var(--mut)}
@@ -396,7 +400,7 @@ function quand(iso){ if(!iso) return ''; var a=new Date(iso+'T12:00:00Z'), b=new
   var j=JOURS[a.getUTCDay()]+' '+a.getUTCDate()+(a.getUTCDate()===1?'er':'')+' '+MOISL[a.getUTCMonth()];
   return n===0?'aujourd\'hui':n===1?'demain':n===-1?'hier':(n>1&&n<7)?'ce '+j:'le '+j; }
 function hh(h){ return h?' à '+h.replace(':','h'):''; }
-function rdvLab(p,t){ if(p.kind==='Études') return 'Entretien'; t=t||p.etape; return (t==='Test'||t==='Inscrit et payé')?'Test':'Rendez-vous'; }
+function rdvLab(p,t){ if(p.kind==='Études') return 'Entretien'; t=t||p.etape; return (t==='Test'||t==='Inscrit et payé'||t==='Place réservée')?'Test':'Rendez-vous'; }
 function rdvNom(p,t){ var f=mainDetail(p)?mainDetail(p).toLowerCase():''; if(p.kind==='Études') return 'entretien d\'orientation';
   return rdvLab(p,t)==='Test'?'test de niveau'+(f?' en '+f:''):'rendez-vous'+(f?' pour la formation en '+f:''); }
 function partName(c){ var x=(S.parts&&S.parts.list||[]).filter(function(q){return q.code===c})[0]; return x?x.nom:c; }
@@ -470,6 +474,24 @@ function render(){
   if(S.tab==='dash') return renderDash(list);
   if(S.tab==='part') return renderParts(list);
 }
+/* Rendez-vous à venir : du plus proche au plus loin, filtres jour / mode */
+function agenda(g){
+  var t=today(), dm=addDays(t,1), A=all().filter(function(p){ return p.hasRdv&&p.rdv&&p.rdv>=t&&p.doublon!=='Doublon'&&p.etape!=='Perdu'&&(S.kind==='Tous'||p.kind===S.kind); })
+    .sort(function(a,b){ return (a.rdv+(a.heure||'99')).localeCompare(b.rdv+(b.heure||'99')); });
+  if(!A.length) return '';
+  var af=S.af||'tous', am=S.am||'', md=function(p){ return p.mode==='En ligne'?'En ligne':'Présentiel'; };
+  var L=A.filter(function(p){ return (af==='tous'||(af==='auj'&&p.rdv===t)||(af==='dem'&&p.rdv===dm))&&(!am||md(p)===am); });
+  var nA=A.filter(function(p){return p.rdv===t}).length, nD=A.filter(function(p){return p.rdv===dm}).length;
+  var ch=function(act,v,cur,lab,n){ return '<button class="chip sm'+(cur===v?' on':'')+'" data-act="'+act+'" data-v="'+v+'">'+lab+(n!==undefined?'<i>'+n+'</i>':'')+'</button>'; };
+  var h='<div class="grp"><span class="ttl">'+IC(g.ic)+'Rendez-vous</span><span class="n">'+A.length+'</span></div>'+
+    '<div class="chips mini">'+ch('agf','tous',af,'Tous')+ch('agf','auj',af,'Aujourd\'hui',nA)+ch('agf','dem',af,'Demain',nD)+'<span class="csep"></span>'+
+      ch('agm','Présentiel',am,'🏢')+ch('agm','En ligne',am,'💻')+'</div>';
+  if(!L.length) return h+'<div class="grp-hint" style="margin:2px 2px 14px">Aucun rendez-vous pour ce filtre.</div>';
+  var lim=S.agAll?L.length:6;
+  S._ag=true; try{ h+=L.slice(0,lim).map(function(p){ return groupOf(p)==='rdv'?card(p,g):card(p,null); }).join(''); } finally { S._ag=false; }
+  if(L.length>lim) h+='<button class="more" data-act="agall" style="margin-bottom:14px">Voir les '+(L.length-lim)+' autres</button>';
+  return h;
+}
 function renderToday(list,todo){
   setChips(todo);
   var shown=todo.filter(function(p){return S.kind==='Tous'||p.kind===S.kind});
@@ -478,6 +500,7 @@ function renderToday(list,todo){
     '<div class="prog"><i style="width:'+pct+'%"></i></div></div>'+groupeBox()+
     (canWrite()&&!canSend()?'<div class="grp-hint" style="margin:0 2px 10px">ℹ️ Ton accès permet de consulter, ajouter et mettre à jour les fiches et les partenaires. Les messages sont envoyés par Mohamed ou Sandrine.</div>':'');
   GROUPS.forEach(function(g){
+    if(g.id==='rdv'){ h+=agenda(g); return; }
     var items=shown.filter(function(p){return groupOf(p)===g.id}).sort(byPrio);
     if(!items.length) return;
     h+='<div class="grp"><span class="ttl">'+IC(g.ic)+g.ttl+'</span><span class="n">'+items.length+'</span></div>'+items.map(function(p){return card(p,g)}).join('');
@@ -503,7 +526,9 @@ function renderAll(list){
 function card(p,g){
   var k=key(p), sub=[ICON[p.kind]+' '+(mainDetail(p)||p.kind), p.etape||'Nouveau'];
   var flags='';
-  if(p.prio==='PRIORITÉ') flags+='<span class="flag hot">🔥 Priorité</span>';
+  if(S._ag && p.rdv){ var dj=p.rdv===today()?'Auj.':p.rdv===addDays(today(),1)?'Demain':fds(p.rdv);
+    flags='<span class="flag rdv">'+dj+(p.heure?' · '+p.heure.replace(':','h'):'')+(p.mode==='En ligne'?' · 💻':'')+'</span>'; }
+  else if(p.prio==='PRIORITÉ') flags+='<span class="flag hot">🔥 Priorité</span>';
   else if(p.rdv && p.rdv>=today()) flags+='<span class="flag rdv">'+fds(p.rdv)+(p.heure?' · '+p.heure.replace(':','h'):'')+(p.mode==='En ligne'?' · 💻 en ligne':'')+'</span>';
   else if(p.noRdv) flags+='<span class="flag warn">Date RDV ?</span>';
   if(p.numBad && !isClosed(p)) flags='<span class="flag hot">📵 Numéro ?</span>';
@@ -817,7 +842,7 @@ function rdvModal(t){
     var nd=S.rNeed[S.rEt]||0, td=addDays(today(),1);
     h+='<div class="hint" style="margin:0">'+esc(p.nom)+' · '+esc(quand(p.rdv)+hh(p.heure))+'</div>'+
       '<label class="lbl">Le rendez-vous s\'est fait</label>'+modeSeg(S.rMode,'rfm')+
-      (sui.length?'<label class="lbl">Et maintenant ?</label><div class="opts" style="grid-template-columns:1fr">'+sui.map(function(x){return '<button class="opt'+(x[0]===S.rEt?' on':'')+'" data-act="rfe" data-e="'+esc(x[0])+'">'+esc(x[1])+'</button>'}).join('')+'</div>':'<div class="hint" style="margin-top:10px">Inscription déjà payée : l\'étape reste « Inscrit et payé ».</div>')+
+      (sui.length?'<label class="lbl">Et maintenant ?</label><div class="opts" style="grid-template-columns:1fr">'+sui.map(function(x){return '<button class="opt'+(x[0]===S.rEt?' on':'')+'" data-act="rfe" data-e="'+esc(x[0])+'">'+esc(x[1])+'</button>'}).join('')+'</div>':'<div class="hint" style="margin-top:10px">'+(p.etape==='Place réservée'?'Place réservée : l\'étape reste « Place réservée » jusqu\'au paiement.':'Inscription déjà payée : l\'étape reste « Inscrit et payé ».')+'</div>')+
       '<div id="r-tst" style="display:'+(nd?'block':'none')+'"><label class="lbl" id="r-tlbl">Date du test'+(nd===1?' (si déjà fixée)':'')+'</label><div class="two"><input class="in" type="date" id="r-tdate" value="'+(nd===2?td:'')+'"><input class="in" type="time" id="r-theure" value="10:00"></div><div class="dl" id="dl-t">'+(nd===2?dayLoad(td,'10:00',key(p),S.rMode):'')+'</div></div>'+
       '<div id="r-won" style="display:'+(WONX.indexOf(S.rEt)>=0?'block':'none')+'"><label class="lbl">Montant encaissé (facultatif)</label><input class="in" type="number" inputmode="numeric" id="r-mt" placeholder="En F CFA" value="'+(p.montant||'')+'"></div>'+
       '<div id="r-lost" style="display:none"><label class="lbl">Raison de la perte</label><select class="sel" id="r-raison"><option value=""></option>'+S.data.lists.raisons.map(function(x){return '<option>'+esc(x)+'</option>'}).join('')+'</select></div>'+
@@ -864,8 +889,9 @@ function suiteOf(p){
   var perdu=['Perdu','✕ Pas intéressé(e) (perdu)'];
   if(p.kind==='Formations'){
     if(p.etape==='Inscrit et payé') return [];
-    if(p.etape==='Test') return [['Inscrit et payé','🎉 A payé son inscription'],['Test','💳 Attend le paiement'],perdu];
-    return [['Inscrit et payé','🎉 A payé · test à programmer',1],['Test','📝 Test de niveau programmé',2],['Intéressé','💭 Réfléchit encore'],perdu];
+    if(p.etape==='Test') return [['Inscrit et payé','🎉 A payé son inscription'],['Place réservée','📌 Place réservée · paiera plus tard'],perdu];
+    if(p.etape==='Place réservée') return [];
+    return [['Inscrit et payé','🎉 A payé · test à programmer',1],['Place réservée','📌 Place réservée · paiera plus tard',1],['Test','📝 Test de niveau programmé',2],['Intéressé','💭 Réfléchit encore'],perdu];
   }
   return (SUITE[p.kind]||[]).map(function(x){ return [x,SUITEL[x]||x]; });
 }
@@ -896,7 +922,7 @@ function groupesActifs(){ var t=today(); return (S.data.groupes||[]).filter(func
 function groupeCibles(g){ return all().filter(function(p){ if(p.kind!==g.kind||isClosed(p)||p.numBad||(p.grp||[]).indexOf(g.id)>=0) return false;
   if(g.pays){ var d=p.details.filter(function(x){return x[0]==='Destination'})[0]; if(!d||d[1].indexOf(g.pays)<0) return false; }
   if(g.kind==='Formations' && /Inscrit/.test(p.etape)) return false; return true; }); }
-function groupeTexte(g,p){ var lim=g.id.indexOf('chine')===0?'2027-01-31':'2026-12-31', n=Math.round((new Date(lim+'T12:00:00Z')-new Date(today()+'T12:00:00Z'))/864e5);
+function groupeTexte(g,p){ var lim=g.fin||(g.id.indexOf('chine')===0?'2027-01-31':'2026-12-31'), n=Math.round((new Date(lim+'T12:00:00Z')-new Date(today()+'T12:00:00Z'))/864e5);
   return g.texte.replace('{p}',p.nom.trim()).replace('{formation}',(mainDetail(p)||'langue').toLowerCase()).replace('{n}',n).replace('{fin}',quand(lim)); }
 function groupeBox(){ if(!canSend()) return ''; return groupesActifs().map(function(g){ var c=groupeCibles(g); if(!c.length) return '';
   return '<div class="banner"><div class="bt"><b>'+esc(g.titre)+'</b><span>'+c.length+' personne'+(c.length>1?'s':'')+' à prévenir · jusqu\'au '+fds(g.au)+'</span></div>'+
@@ -1163,6 +1189,9 @@ document.addEventListener('click',function(e){
   switch(a){
     case 'login': doLogin(); break;
     case 'reload': load(true); break;
+    case 'agf': S.af=el.getAttribute('data-v'); S.agAll=false; render(); break;
+    case 'agm': var v0=el.getAttribute('data-v'); S.am=S.am===v0?'':v0; S.agAll=false; render(); break;
+    case 'agall': S.agAll=true; render(); break;
     case 'depnew': hideOnlySheetKeep(); depModal(); break;
     case 'depcat': S.depCat=el.getAttribute('data-c'); [].forEach.call(el.parentNode.children,function(b){ b.className='opt'+(b===el?' on':''); }); if(S.depCat==='Stand / JPO'){ $('dep-plan').checked=false; $('dep-canal').value='Visite d\'un lycée'; } $('w-dpart').className=($('dep-canal').value==='Visite d\'un lycée'||S.depCat==='Stand / JPO')?'':'hide'; break;
     case 'deppart': (function(){ var x=pfind(S.pcur); hideOnlySheetKeep(); depModal({part:S.pcur,cat:x&&x.type==='Lycée'?'Stand / JPO':'Autre'}); })(); break;
