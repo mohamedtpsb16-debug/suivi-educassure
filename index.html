@@ -428,6 +428,8 @@ function run(fn){ var args=[].slice.call(arguments,1); busy(true);
       if(/CODE:/.test(j.error) && fn!=='login') logout(true); throw new Error(j.error); },
       function(e){ busy(false); throw e; });
 }
+var Q=Promise.resolve(), QN=0;
+function runQ(){ var a=arguments; QN++; var pr=Q.then(function(){ return run.apply(null,a); }); Q=pr.then(function(){QN--;},function(){QN--;}); return pr; }
 function today(){ return S.data ? S.data.today : new Date().toISOString().slice(0,10); }
 function canWrite(){ return S.data && S.data.ecriture; }
 function canSend(){ return S.data && S.data.ecriture && S.data.envoi!==false; }
@@ -466,7 +468,7 @@ function hello(){ var d=S.data; $('hello').textContent='Bonjour '+d.user+' 👋'
   var j=new Date(d.today+'T12:00:00Z').toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short',timeZone:'UTC'});
   $('sub').textContent=(d.role?d.role+' · ':'')+j+(d.ecriture?'':' · consultation'); }
 function load(force){ if(!S.parts||S.tab==='part') loadParts(); if(S.tab==='dash') loadDash();
-  return run('getData',S.pin,!!force).then(function(d){ S.data=d; hello(); keep(); render(); }).catch(err); }
+  return Q.then(function(){ return run('getData',S.pin,!!force); }).then(function(d){ S.data=d; hello(); keep(); render(); }).catch(err); }
 
 /* ---------- Classement du jour ---------- */
 function all(){ var a=[]; if(!S.data) return a; KINDS.forEach(function(k){ a=a.concat(S.data.kinds[k]); }); return a.filter(function(p){ return p.doublon!=='Doublon'; }); }
@@ -560,7 +562,7 @@ function chainShow(){
 function chainSend(){
   var c=S.chain, p=find(c.list[c.i]), t=val('ch-msg').trim(); if(!t){ toast('Le message est vide.'); return; }
   window.open(waUrl(p.num,t),'_blank');
-  var call=c.mode==='day'?run('markSent',S.pin,p.kind,p.row,p.nom,p.action):run('sendGroup',S.pin,p.kind,p.row,p.nom,c.id,t);
+  var call=c.mode==='day'?runQ('markSent',S.pin,p.kind,p.row,p.nom,p.action):runQ('sendGroup',S.pin,p.kind,p.row,p.nom,c.id,t);
   c.n++; c.i++;
   call.then(function(res){ replace(res.row); bumpDone(); if(!S.chain) render(); }).catch(err);
   chainShow();
@@ -786,13 +788,15 @@ function val(id){ var e=$(id); return e?e.value:undefined; }
 /* ---------- Actions ---------- */
 function replace(r){ var arr=S.data.kinds[r.kind]; for(var i=0;i<arr.length;i++) if(arr[i].row===r.row) arr[i]=r; keep(); }
 function sent(k){
-  var p=find(k), action=p.action;
-  run('markSent',S.pin,p.kind,p.row,p.nom,action).then(function(res){ replace(res.row); bumpDone(); render();
-    toast('Envoi noté ✓','Annuler',function(){ run('undoSent',S.pin,p.kind,p.row,p.nom,res.prev).then(function(r2){ replace(r2.row); render(); toast('Annulé'); }).catch(err); });
-  }).catch(err);
+  var p=find(k), action=p.action, old=JSON.stringify(p);
+  // Tout de suite à l'écran ; l'enregistrement suit en arrière-plan.
+  p.action='Attente réponse'; p.callback=''; p.lastAct=today(); bumpDone(); render();
+  var call=runQ('markSent',S.pin,p.kind,p.row,p.nom,action);
+  toast('Envoi noté ✓','Annuler',function(){ call.then(function(res){ return runQ('undoSent',S.pin,p.kind,p.row,p.nom,res.prev); }).then(function(r2){ replace(r2.row); render(); toast('Annulé'); }).catch(err); });
+  call.then(function(res){ replace(res.row); render(); }).catch(function(e){ replace(JSON.parse(old)); render(); err(e); });
 }
 function replied(k){ var p=find(k);
-  run('markReplied',S.pin,p.kind,p.row,p.nom).then(function(res){ replace(res.row); bumpDone(); render(); toast('Relances arrêtées ✓','Mettre à jour',function(){ openSheet(k,'suivi'); }); }).catch(err); }
+  runQ('markReplied',S.pin,p.kind,p.row,p.nom).then(function(res){ replace(res.row); bumpDone(); render(); toast('Relances arrêtées ✓','Mettre à jour',function(){ openSheet(k,'suivi'); }); }).catch(err); }
 function save(){
   var p=find(S.cur), f={etape:val('f-etape'),montant:val('f-montant'),raison:val('f-raison'),notes:val('f-notes')};
   if(p.hasRdv) f.rdv=val('f-rdv');
@@ -844,7 +848,7 @@ function numCheck(raw){
   if(/^(\d)\1+$/.test(d)) return 'Numéro fictif';
   var loc=d.length===8?d:(d.length===11&&d.indexOf('226')===0?d.slice(3):null);
   if(loc && (/^(\d)\1+$/.test(loc) || /^(12345678|23456789|87654321)$/.test(loc))) return 'Numéro fictif';
-  if(loc) return /^[0567]/.test(loc)?'':(/^2/.test(loc)?'Numéro fixe (pas de WhatsApp)':'Ne commence pas par 0, 5, 6 ou 7');
+  if(loc) return /^[04567]/.test(loc)?'':(/^2/.test(loc)?'Numéro fixe (pas de WhatsApp)':'Ne commence pas par 0, 4, 5, 6 ou 7');
   if(d.indexOf('226')===0) return 'Il manque ou il y a trop de chiffres';
   if(d.length>=10&&d.length<=15) return '';
   return d.length<8?'Il manque des chiffres':'Nombre de chiffres incorrect';
